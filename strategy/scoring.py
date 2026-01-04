@@ -32,4 +32,12 @@ class ScoringEngine:
         if details.get('volatile'):
             score += 0.5
             
+        # 6. V4.0 Ultra-Quant: Asian Sweep Bonus
+        if details.get('asian_sweep'):
+            score += 1.5
+            
+        # 7. V4.0 Ultra-Quant: ADR Exhaustion Penalty (Safety Switch)
+        if details.get('adr_exhausted'):
+            score -= 3.0
+            
         return round(score, 1)

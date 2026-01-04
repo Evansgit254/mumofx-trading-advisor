@@ -1,10 +1,14 @@
-pandas
-yfinance
+pandas>=2.0.0
+numpy
+scipy
+yfinance>=0.2.31
 pandas_ta
-python-telegram-bot
+python-telegram-bot>=20.0
 python-dotenv
 pytz
 requests
 pytest
 google-generativeai
 pytest-asyncio
+scikit-learn
+joblib

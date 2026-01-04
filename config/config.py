@@ -4,19 +4,23 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Trading Settings
-SYMBOLS = ["EURUSD=X", "GBPUSD=X", "USDJPY=X", "AUDUSD=X", "GC=F"]
+SYMBOLS = ["EURUSD=X", "GBPUSD=X", "USDJPY=X", "AUDUSD=X", "USDCAD=X", "NZDUSD=X", "GC=F", "^GSPC", "^IXIC"]
+DXY_SYMBOL = "DX-Y.NYB"
 NARRATIVE_TF = "1h"
 STRUCTURE_TF = "15m"
 ENTRY_TF = "5m" # Switched to 5m for better intraday consistency
 SCALP_TF = "1m"
 
 # INDICATORS
-EMA_TREND = 200 # For H1 Trend
+EMA_TREND = 100 # Optimized from 200
 EMA_FAST = 20
 EMA_SLOW = 50
 RSI_PERIOD = 14
 ATR_PERIOD = 14
 ATR_AVG_PERIOD = 50
+ATR_MULTIPLIER = 1.5 # Optimized from 1.5 (Confirmed)
+ADR_PERIOD = 20 # Standard 20-day Average Daily Range
+ADR_THRESHOLD_PERCENT = 0.90 # 90% Exhaustion Zone
 
 # LIQUIDITY
 LIQUIDITY_LOOKBACK = 50 # bars
@@ -43,6 +47,8 @@ LONDON_OPEN = 8
 LONDON_CLOSE = 16
 NY_OPEN = 13
 NY_CLOSE = 21
+ASIAN_SESSION_START = 0 # UTC
+ASIAN_SESSION_END = 8 # UTC
 
 # NEWS FILTER
 NEWS_WASH_ZONE = 30 # Minutes before/after high-impact news
@@ -50,3 +56,9 @@ NEWS_IMPACT_LEVELS = ["High", "Medium"] # Impact levels to track
 
 # SCORING
 MIN_CONFIDENCE_SCORE = 9.0
+
+# RISK MANAGEMENT V3.2 ($50 Account Optimized)
+ACCOUNT_BALANCE = 50.0 # User's target starting balance
+RISK_PER_TRADE_PERCENT = 2.0 # Standard 2% risk
+MAX_CONCURRENT_TRADES = 2
+MIN_LOT_SIZE = 0.01 

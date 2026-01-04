@@ -1,5 +1,5 @@
 import pandas as pd
-from config.config import RSI_BUY_LOW, RSI_BUY_HIGH, RSI_SELL_LOW, RSI_SELL_HIGH, EMA_FAST
+from config.config import RSI_BUY_LOW, RSI_BUY_HIGH, RSI_SELL_LOW, RSI_SELL_HIGH, EMA_FAST, ATR_MULTIPLIER
 
 class EntryLogic:
     @staticmethod
@@ -52,13 +52,13 @@ class EntryLogic:
         latest_price = df.iloc[-1]['close']
         
         if direction == "BUY":
-            sl = sweep_level - (0.2 * atr) # Slightly below sweep wick
+            sl = sweep_level - (0.2 * atr)
             tp1 = latest_price + (1.0 * atr)
-            tp2 = latest_price + (1.5 * atr)
+            tp2 = latest_price + (ATR_MULTIPLIER * atr)
         else:
             sl = sweep_level + (0.2 * atr)
             tp1 = latest_price - (1.0 * atr)
-            tp2 = latest_price - (1.5 * atr)
+            tp2 = latest_price - (ATR_MULTIPLIER * atr)
             
         return {
             'sl': sl,

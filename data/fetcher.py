@@ -2,6 +2,7 @@ import yfinance as yf
 import pandas as pd
 from typing import Dict, Optional
 from config.config import SYMBOLS, NARRATIVE_TF, STRUCTURE_TF, ENTRY_TF
+from indicators.calculations import IndicatorCalculator
 
 class DataFetcher:
     @staticmethod
@@ -22,6 +23,7 @@ class DataFetcher:
                 'Close': 'close',
                 'Volume': 'volume'
             })
+            df.index = df.index.tz_convert("UTC")
             return df
         except Exception as e:
             print(f"Error fetching {timeframe} data for {symbol}: {e}")
@@ -45,6 +47,7 @@ class DataFetcher:
                 'Close': 'close', 
                 'Volume': 'volume'
             })
+            df.index = df.index.tz_convert("UTC")
             return df
         except Exception as e:
             print(f"Error fetching range for {symbol}: {e}")
@@ -55,7 +58,15 @@ class DataFetcher:
         """
         Fetches multi-timeframe data for all symbols.
         """
+        from config.config import DXY_SYMBOL
         results = {}
+        
+        # Fetch DXY Narrative (1H) for Gold Confluence
+        dxy_data = DataFetcher.fetch_data(DXY_SYMBOL, "1h", period="10d")
+        if dxy_data is not None:
+            dxy_data = IndicatorCalculator.add_indicators(dxy_data, "h1")
+            results['DXY'] = dxy_data
+
         for symbol in symbols:
             # Narrative (1H) - Needs more history for 200 EMA
             h1_data = DataFetcher.fetch_data(symbol, NARRATIVE_TF, period="1mo")

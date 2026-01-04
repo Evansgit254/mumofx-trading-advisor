@@ -25,8 +25,12 @@ class TelegramService:
         """
         Formats signal data into the strict Telegram format.
         """
+        header = "⚡ *SMC TOP-DOWN SETUP*"
+        if "GC=F" in data.get('symbol', ''):
+            header = "🏆 *GOLD SNIPER ELITE SETUP* 🥇"
+
         return f"""
-⚡ *SMC TOP-DOWN SETUP*
+{header}
 
 *Pair:* {data['pair']}
 *Direction:* {data['direction']}
@@ -40,9 +44,16 @@ class TelegramService:
 
 🧠 *AI Market Analysis:*
 • {data['ai_logic']}
+{data.get('confluence', '')}
 
 *Entry Zone:*
 • {data['entry_zone']}
+
+🛡️ *Micro-Account Risk (V3.2):*
+• Recommended Lots: `{data['risk_details']['lots']}`
+• Risk Amount: `${data['risk_details']['risk_cash']}` ({data['risk_details']['risk_percent']}%)
+• SL Distance: {data['risk_details']['pips']} pips
+{data['risk_details']['warning']}
 
 *Stop Loss:*
 • {data['sl']:.5f} (below sweep)
@@ -53,7 +64,12 @@ class TelegramService:
 
 *ATR:* {data['atr_status']}
 *Session:* {data['session']}
-*Confidence:* {data['confidence']} / 10
+📊 *Confidence:* {data['confidence']} / 10
+🤖 *ML Win Probability:* {data['win_prob']*100:.1f}%
+
+🎯 *Ultra-Quant (V4.0):*
+• Session Sniper: {"✅ ASIAN SWEEP" if data.get('asian_sweep') else "Standard Liquidity"}
+• ADR Usage: {data.get('adr_usage')}% {"⚠️ EXHAUSTED" if data.get('adr_exhausted') else "✅ HEALTHY"}
 
 {data.get('news_warning', '')}
 
