@@ -1,6 +1,6 @@
 import pandas as pd
 import pandas_ta as ta
-from config.config import EMA_FAST, EMA_SLOW, RSI_PERIOD, ATR_PERIOD, ATR_AVG_PERIOD
+from config.config import EMA_FAST, EMA_SLOW, RSI_PERIOD, ATR_PERIOD, ATR_AVG_PERIOD, EMA_TREND
 
 class IndicatorCalculator:
     @staticmethod
@@ -14,6 +14,9 @@ class IndicatorCalculator:
         # EMAs
         df[f'ema_{EMA_FAST}'] = ta.ema(df['close'], length=EMA_FAST)
         df[f'ema_{EMA_SLOW}'] = ta.ema(df['close'], length=EMA_SLOW)
+        
+        if timeframe == "h1":
+            df[f'ema_{EMA_TREND}'] = ta.ema(df['close'], length=EMA_TREND)
 
         # RSI
         df['rsi'] = ta.rsi(df['close'], length=RSI_PERIOD)

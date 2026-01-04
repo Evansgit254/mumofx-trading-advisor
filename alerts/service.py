@@ -26,13 +26,14 @@ class TelegramService:
         Formats signal data into the strict Telegram format.
         """
         return f"""
-⚡ *SMC SCALP SETUP*
+⚡ *SMC TOP-DOWN SETUP*
 
 *Pair:* {data['pair']}
 *Direction:* {data['direction']}
-*Style:* Scalping (SMC)
-*Bias TF:* M5
-*Entry TF:* M1
+*Style:* Intraday (SMC)
+*Narrative (1H):* {data['h1_trend']}
+*Setup TF:* {data['setup_tf']}
+*Entry TF:* {data['entry_tf']}
 
 *Liquidity Event:*
 • {data['liquidity_event']}

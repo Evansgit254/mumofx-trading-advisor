@@ -3,7 +3,7 @@ from config.config import RSI_BUY_LOW, RSI_BUY_HIGH, RSI_SELL_LOW, RSI_SELL_HIGH
 
 class EntryLogic:
     @staticmethod
-    def check_pullback(m1_df: pd.DataFrame, direction: str) -> dict:
+    def check_pullback(df: pd.DataFrame, direction: str) -> dict:
         """
         Checks for pullback to EMA20 and RSI confirmation.
         Returns entry details if valid.
@@ -45,7 +45,7 @@ class EntryLogic:
         return None
 
     @staticmethod
-    def calculate_levels(m1_df: pd.DataFrame, direction: str, sweep_level: float, atr: float):
+    def calculate_levels(df: pd.DataFrame, direction: str, sweep_level: float, atr: float):
         """
         Calculates Stop Loss and Take Profit levels.
         """

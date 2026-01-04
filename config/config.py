@@ -5,10 +5,13 @@ load_dotenv()
 
 # Trading Settings
 SYMBOLS = ["EURUSD=X", "GBPUSD=X", "USDJPY=X", "AUDUSD=X", "GC=F"]
-BIAS_TF = "5m"
-ENTRY_TF = "1m"
+NARRATIVE_TF = "1h"
+STRUCTURE_TF = "15m"
+ENTRY_TF = "5m" # Switched to 5m for better intraday consistency
+SCALP_TF = "1m"
 
 # INDICATORS
+EMA_TREND = 200 # For H1 Trend
 EMA_FAST = 20
 EMA_SLOW = 50
 RSI_PERIOD = 14

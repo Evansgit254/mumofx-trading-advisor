@@ -1,44 +1,42 @@
 import pandas as pd
-from config.config import EMA_FAST, EMA_SLOW
+from config.config import EMA_FAST, EMA_SLOW, EMA_TREND
 
 class BiasAnalyzer:
     @staticmethod
-    def get_bias(m5_df: pd.DataFrame) -> str:
+    def get_bias(h1_df: pd.DataFrame, m15_df: pd.DataFrame) -> str:
         """
-        Determines the bias based on M5 EMAs and price action.
-        Returns: 'BULLISH', 'BEARISH', or 'NEUTRAL'
+        Determines the Top-Down bias.
+        H1 Trends + M15 Structure alignment.
         """
-        if m5_df.empty or len(m5_df) < 2:
+        if h1_df.empty or m15_df.empty:
             return "NEUTRAL"
-
-        latest = m5_df.iloc[-1]
-        ema20 = latest[f'ema_{EMA_FAST}']
-        ema50 = latest[f'ema_{EMA_SLOW}']
-        price = latest['close']
-
-        # Bullish: EMA20 > EMA50 and Price > EMA20
-        if ema20 > ema50 and price > ema20:
-            return "BULLISH"
+            
+        h1_latest = h1_df.iloc[-1]
+        m15_latest = m15_df.iloc[-1]
         
-        # Bearish: EMA20 < EMA50 and Price < EMA20
-        if ema20 < ema50 and price < ema20:
+        # 1. H1 Narrative (EMA 200)
+        h1_trend = "BULLISH" if h1_latest['close'] > h1_latest[f'ema_{EMA_TREND}'] else "BEARISH"
+        
+        # 2. M15 Structural Alignment (EMA 20/50)
+        m15_ema20 = m15_latest[f'ema_{EMA_FAST}']
+        m15_ema50 = m15_latest[f'ema_{EMA_SLOW}']
+        
+        m15_bias = "NEUTRAL"
+        if m15_ema20 > m15_ema50 and m15_latest['close'] > m15_ema20:
+            m15_bias = "BULLISH"
+        elif m15_ema20 < m15_ema50 and m15_latest['close'] < m15_ema20:
+            m15_bias = "BEARISH"
+            
+        # 3. Final Convergence
+        if h1_trend == "BULLISH" and m15_bias == "BULLISH":
+            return "BULLISH"
+        if h1_trend == "BEARISH" and m15_bias == "BEARISH":
             return "BEARISH"
-
+            
         return "NEUTRAL"
 
     @staticmethod
-    def is_choppy(m5_df: pd.DataFrame) -> bool:
-        """
-        Detects choppy market structure.
-        """
-        if len(m5_df) < 10:
-            return True
-        
-        # Simple chop detection: price crossing EMA50 frequently
-        crosses = ((m5_df['close'] > m5_df[f'ema_{EMA_SLOW}']) & (m5_df['close'].shift(1) < m5_df[f'ema_{EMA_SLOW}'].shift(1))) | \
-                  ((m5_df['close'] < m5_df[f'ema_{EMA_SLOW}']) & (m5_df['close'].shift(1) > m5_df[f'ema_{EMA_SLOW}'].shift(1)))
-        
-        if crosses.tail(10).sum() > 4:
-            return True
-        
-        return False
+    def get_h1_trend(h1_df: pd.DataFrame) -> str:
+        if h1_df.empty: return "NEUTRAL"
+        latest = h1_df.iloc[-1]
+        return "BULLISH" if latest['close'] > latest[f'ema_{EMA_TREND}'] else "BEARISH"
