@@ -20,7 +20,8 @@ ATR_PERIOD = 14
 ATR_AVG_PERIOD = 50
 ATR_MULTIPLIER = 1.5 # Optimized from 1.5 (Confirmed)
 ADR_PERIOD = 20 # Standard 20-day Average Daily Range
-ADR_THRESHOLD_PERCENT = 0.90 # 90% Exhaustion Zone
+ADR_THRESHOLD_PERCENT = 0.95 # Rebalanced from 0.90 for V5.0
+POC_LOOKBACK = 200 # Bars for Volume Profile POC calculation
 
 # LIQUIDITY
 LIQUIDITY_LOOKBACK = 50 # bars
@@ -49,6 +50,7 @@ NY_OPEN = 13
 NY_CLOSE = 21
 ASIAN_SESSION_START = 0 # UTC
 ASIAN_SESSION_END = 8 # UTC
+ASIAN_RANGE_MIN_PIPS = 15 # Minimum range for sweep validity
 
 # NEWS FILTER
 NEWS_WASH_ZONE = 30 # Minutes before/after high-impact news

@@ -1,6 +1,10 @@
 import pandas as pd
 import pandas_ta as ta
-from config.config import EMA_FAST, EMA_SLOW, RSI_PERIOD, ATR_PERIOD, ATR_AVG_PERIOD, EMA_TREND, ADR_PERIOD, ASIAN_SESSION_START, ASIAN_SESSION_END
+from config.config import (
+    EMA_FAST, EMA_SLOW, RSI_PERIOD, ATR_PERIOD, ATR_AVG_PERIOD, 
+    EMA_TREND, ADR_PERIOD, ASIAN_SESSION_START, ASIAN_SESSION_END,
+    POC_LOOKBACK, ASIAN_RANGE_MIN_PIPS
+)
 from datetime import time
 
 class IndicatorCalculator:
@@ -71,3 +75,28 @@ class IndicatorCalculator:
             'high': recent_block['high'].max(),
             'low': recent_block['low'].min()
         }
+
+    @staticmethod
+    def calculate_poc(df: pd.DataFrame) -> float:
+        """
+        Calculates the Point of Control (POC) - price level with highest volume.
+        Uses POC_LOOKBACK bars.
+        """
+        if df.empty: return 0.0
+        
+        subset = df.tail(POC_LOOKBACK).copy()
+        if subset.empty: return 0.0
+        
+        # Create price bins (50 bins across the range)
+        price_min = subset['low'].min()
+        price_max = subset['high'].max()
+        if price_min == price_max: return price_min
+        
+        bins = pd.cut(subset['close'], bins=50)
+        volume_profile = subset.groupby(bins, observed=True)['volume'].sum()
+        
+        if volume_profile.empty: return subset['close'].iloc[-1]
+        
+        # Get the middle price of the winning bin
+        winning_bin = volume_profile.idxmax()
+        return winning_bin.mid

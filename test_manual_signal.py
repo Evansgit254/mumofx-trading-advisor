@@ -29,6 +29,9 @@ async def test_manual_signal():
         'symbol': 'EURUSD=X',
         'confluence': '✅ Manual System Check',
         'asian_sweep': True,
+        'asian_quality': True,
+        'at_value': True,
+        'poc': 1.0505,
         'adr_exhausted': False,
         'adr_usage': 85.0,
         'risk_details': {

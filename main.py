@@ -16,7 +16,7 @@ from alerts.service import TelegramService
 from ai.analyst import AIAnalyst
 from filters.correlation import CorrelationAnalyzer
 from filters.risk_manager import RiskManager
-from config.config import SYMBOLS, MIN_CONFIDENCE_SCORE, NARRATIVE_TF, STRUCTURE_TF, ENTRY_TF, ADR_THRESHOLD_PERCENT
+from config.config import SYMBOLS, MIN_CONFIDENCE_SCORE, NARRATIVE_TF, STRUCTURE_TF, ENTRY_TF, ADR_THRESHOLD_PERCENT, ASIAN_RANGE_MIN_PIPS
 import joblib
 import os
 
@@ -84,13 +84,25 @@ async def process_symbol(symbol: str, data: dict, news_events: list, ai_analyst:
         adr_exhausted = True
         
     asian_sweep = False
+    asian_quality = False
     if asian_range:
+        # Calculate Pips for quality check
+        raw_range = asian_range['high'] - asian_range['low']
+        pips = raw_range * 100 if "JPY" in symbol else raw_range * 10000
+        if pips >= ASIAN_RANGE_MIN_PIPS:
+            asian_quality = True
+            
         if direction == "BUY" and m5_df.iloc[-1]['low'] < asian_range['low']:
             asian_sweep = True
         elif direction == "SELL" and m5_df.iloc[-1]['high'] > asian_range['high']:
             asian_sweep = True
 
-    # 8. Scoring
+    # 8. V5.0 Hyper-Quant: Volume Profile (POC)
+    poc = IndicatorCalculator.calculate_poc(m5_df)
+    atr = m5_df.iloc[-1]['atr']
+    at_value = abs(m5_df.iloc[-1]['close'] - poc) <= (0.5 * atr) # Within 0.5 ATR of Value
+
+    # 9. Scoring
     score_details = {
         'h1_aligned': h1_trend == direction.replace('BUY', 'BULLISH').replace('SELL', 'BEARISH'),
         'sweep_type': sweep['type'],
@@ -99,7 +111,9 @@ async def process_symbol(symbol: str, data: dict, news_events: list, ai_analyst:
         'session': session,
         'volatile': volatile,
         'asian_sweep': asian_sweep,
-        'adr_exhausted': adr_exhausted
+        'asian_quality': asian_quality,
+        'adr_exhausted': adr_exhausted,
+        'at_value': at_value
     }
     confidence = ScoringEngine.calculate_score(score_details)
 
@@ -193,8 +207,11 @@ async def process_symbol(symbol: str, data: dict, news_events: list, ai_analyst:
             'confluence': confluence_text,
             'risk_details': risk_details,
             'asian_sweep': asian_sweep,
+            'asian_quality': asian_quality,
             'adr_exhausted': adr_exhausted,
-            'adr_usage': round((current_range / adr * 100), 1) if adr > 0 else 0
+            'adr_usage': round((current_range / adr * 100), 1) if adr > 0 else 0,
+            'at_value': at_value,
+            'poc': poc
         }
     
     return None

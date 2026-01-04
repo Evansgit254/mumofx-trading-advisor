@@ -40,4 +40,12 @@ class ScoringEngine:
         if details.get('adr_exhausted'):
             score -= 3.0
             
+        # 8. V5.0 Hyper-Quant: Asian Range Quality
+        if details.get('asian_sweep') and details.get('asian_quality'):
+            score += 0.5
+            
+        # 9. V5.0 Hyper-Quant: Institutional Value (POC proximity)
+        if details.get('at_value'):
+            score += 1.0
+            
         return round(score, 1)
