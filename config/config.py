@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Trading Settings
-SYMBOLS = ["EURUSD=X", "GBPUSD=X", "USDJPY=X", "AUDUSD=X"]
+SYMBOLS = ["EURUSD=X", "GBPUSD=X", "USDJPY=X", "AUDUSD=X", "GC=F"]
 BIAS_TF = "5m"
 ENTRY_TF = "1m"
 
