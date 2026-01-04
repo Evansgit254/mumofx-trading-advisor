@@ -44,8 +44,9 @@ class ScoringEngine:
         if details.get('asian_sweep') and details.get('asian_quality'):
             score += 0.5
             
-        # 9. V5.0 Hyper-Quant: Institutional Value (POC proximity)
+        # 9. V5.2 Hyper-Quant: institutional Value (POC proximity)
+        # PENALTY: Consolidation Zone (POC) is high risk for reversals.
         if details.get('at_value'):
-            score += 1.0
+            score -= 3.0 
             
         return round(score, 1)

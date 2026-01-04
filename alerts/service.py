@@ -67,9 +67,9 @@ class TelegramService:
 📊 *Confidence:* {data['confidence']} / 10
 🤖 *ML Win Probability:* {data['win_prob']*100:.1f}%
 
-🎯 *Ultra-Quant (V5.0):*
+🎯 *Ultra-Quant (V5.2):*
 • Session Sniper: {"✅ ASIAN SWEEP" if data.get('asian_sweep') else "Standard Liquidity"} {"(High Quality)" if data.get('asian_quality') else "(Low Range)"}
-• Volume Sniper: {"✅ AT INSTITUTIONAL VALUE" if data.get('at_value') else "Chasing Momentum"} (POC: {data.get('poc'):.5f})
+• Volume Sniper: {"⚠️ UNSAFE VALUE ZONE" if data.get('at_value') else "✅ EXTREME VALUE (INSTITUTIONAL)"} (POC: {data.get('poc'):.5f})
 • ADR Usage: {data.get('adr_usage')}% {"⚠️ EXHAUSTED" if data.get('adr_exhausted') else "✅ HEALTHY"}
 
 {data.get('news_warning', '')}
