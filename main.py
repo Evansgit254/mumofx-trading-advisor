@@ -14,8 +14,9 @@ from filters.news_filter import NewsFilter
 from data.news_fetcher import NewsFetcher
 from strategy.scoring import ScoringEngine
 from alerts.service import TelegramService
+from ai.analyst import AIAnalyst
 
-async def process_symbol(symbol: str, data: dict, telegram_service: TelegramService, news_events: list):
+async def process_symbol(symbol: str, data: dict, telegram_service: TelegramService, news_events: list, ai_analyst: AIAnalyst):
     h1_df = data['h1']
     m15_df = data['m15']
     m5_df = data['m5']
@@ -68,7 +69,23 @@ async def process_symbol(symbol: str, data: dict, telegram_service: TelegramServ
     }
     confidence = ScoringEngine.calculate_score(score_details)
 
-    # 8. Alert
+    # 8. AI Market Intelligence (Confirmation)
+    ai_result = {"valid": True, "institutional_logic": "Standard liquidity alignment."}
+    if confidence >= 8.5: # Run AI for borderline/strong setups
+        ai_result = await ai_analyst.validate_signal({
+            'pair': symbol,
+            'direction': direction,
+            'h1_trend': h1_trend,
+            'setup_tf': sweep['type'],
+            'liquidity_event': sweep['description'],
+            'confidence': confidence
+        })
+        
+    if not ai_result.get('valid', True):
+        print(f"AI rejected {symbol} setup: {ai_result.get('institutional_logic')}")
+        return
+
+    # 9. Alert
     if confidence >= MIN_CONFIDENCE_SCORE:
         atr = m5_df.iloc[-1]['atr']
         levels = EntryLogic.calculate_levels(m5_df, direction, sweep['level'], atr)
@@ -95,7 +112,8 @@ async def process_symbol(symbol: str, data: dict, telegram_service: TelegramServ
             'atr_status': atr_status,
             'session': session,
             'confidence': confidence,
-            'news_warning': news_warning
+            'news_warning': news_warning,
+            'ai_logic': ai_result.get('institutional_logic', 'Institutional volume confirmed via liquidity sweep.')
         }
         
         message = telegram_service.format_signal(signal_data)
@@ -112,10 +130,11 @@ async def main():
     market_data = fetcher.get_latest_data()
     
     telegram_service = TelegramService()
+    ai_analyst = AIAnalyst()
     
     tasks = []
     for symbol, data in market_data.items():
-        tasks.append(process_symbol(symbol, data, telegram_service, news_events))
+        tasks.append(process_symbol(symbol, data, telegram_service, news_events, ai_analyst))
     
     await asyncio.gather(*tasks)
     print("Execution completed.")

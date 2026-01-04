@@ -38,6 +38,9 @@ class TelegramService:
 *Liquidity Event:*
 • {data['liquidity_event']}
 
+🧠 *AI Market Analysis:*
+• {data['ai_logic']}
+
 *Entry Zone:*
 • {data['entry_zone']}
 
