@@ -13,7 +13,7 @@ from filters.volatility_filter import VolatilityFilter
 from filters.news_filter import NewsFilter
 from data.news_fetcher import NewsFetcher
 from strategy.scoring import ScoringEngine
-from telegram.service import TelegramService
+from alerts.service import TelegramService
 
 async def process_symbol(symbol: str, data: dict, telegram_service: TelegramService, news_events: list):
     m5_df = data['m5']
