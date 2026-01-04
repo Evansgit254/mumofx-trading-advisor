@@ -8,11 +8,11 @@ class EntryLogic:
         Checks for pullback to EMA20 and RSI confirmation.
         Returns entry details if valid.
         """
-        if m1_df.empty or len(m1_df) < 2:
+        if df.empty or len(df) < 2:
             return None
 
-        latest = m1_df.iloc[-1]
-        prev = m1_df.iloc[-2]
+        latest = df.iloc[-1]
+        prev = df.iloc[-2]
         ema20 = latest[f'ema_{EMA_FAST}']
         rsi = latest['rsi']
         prev_rsi = prev['rsi']
