@@ -49,7 +49,7 @@ class EntryLogic:
         """
         Calculates Stop Loss and Take Profit levels.
         """
-        latest_price = m1_df.iloc[-1]['close']
+        latest_price = df.iloc[-1]['close']
         
         if direction == "BUY":
             sl = sweep_level - (0.2 * atr) # Slightly below sweep wick

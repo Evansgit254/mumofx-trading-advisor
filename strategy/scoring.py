@@ -2,32 +2,34 @@ class ScoringEngine:
     @staticmethod
     def calculate_score(details: dict) -> float:
         """
-        Scores a signal from 0 to 10.
-        Expects: bias_strength, sweep_quality, displacement, pullback_depth, session, volatility
+        Tuned Scoring Engine (v2.0)
+        Increased strictness for Intraday setups.
         """
         score = 0.0
         
-        # 1. Bias alignment (Mandatory for setup, so we assume it exists if we reach here)
-        score += 2.0
+        # 1. Bias alignment (Narrative Alignment)
+        if details.get('h1_aligned'):
+            score += 3.0 # Increase weight for H1 Narrative
+        else:
+            score += 1.5
         
         # 2. Sweep quality (wick size, level importance)
-        if details.get('sweep_type') in ['BEARISH_SWEEP', 'BULLISH_SWEEP']:
-            score += 2.5
+        sweep_type = details.get('sweep_type', '')
+        if 'M15' in sweep_type:
+            score += 3.0 # M15 sweeps are higher probability
+        elif 'M5' in sweep_type:
+            score += 2.0
             
         # 3. Displacement strength
         if details.get('displaced'):
             score += 2.0
             
-        # 4. Pullback depth & RSI
+        # 4. Pullback depth & RSI Recovery
         if details.get('pullback'):
             score += 1.5
             
-        # 5. Volatility (ATR expansion)
+        # 5. Volatility (Quality expansion)
         if details.get('volatile'):
-            score += 1.0
-            
-        # 6. Session quality
-        if details.get('session') in ['London Open', 'London-NY Overlap']:
-            score += 1.0
+            score += 0.5
             
         return round(score, 1)

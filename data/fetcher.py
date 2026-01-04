@@ -12,7 +12,7 @@ class DataFetcher:
         try:
             ticker = yf.Ticker(symbol)
             df = ticker.history(period=period, interval=timeframe)
-            if df.empty:
+            if df is None or df.empty:
                 return None
             
             df = df.rename(columns={
@@ -35,7 +35,7 @@ class DataFetcher:
         try:
             ticker = yf.Ticker(symbol)
             df = ticker.history(start=start, end=end, interval=timeframe)
-            if df.empty:
+            if df is None or df.empty:
                 return None
             
             df = df.rename(columns={

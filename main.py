@@ -59,7 +59,7 @@ async def process_symbol(symbol: str, data: dict, telegram_service: TelegramServ
 
     # 7. Scoring
     score_details = {
-        'bias_strength': True,
+        'h1_aligned': h1_trend == direction.replace('BUY', 'BULLISH').replace('SELL', 'BEARISH'),
         'sweep_type': sweep['type'],
         'displaced': displaced,
         'pullback': entry is not None,
