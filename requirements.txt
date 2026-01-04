@@ -1,0 +1,6 @@
+pandas
+yfinance
+pandas_ta
+python-telegram-bot
+python-dotenv
+pytz
