@@ -58,8 +58,15 @@ class AIAnalyst:
         prompt = f"""
         Analyze these economic events for {symbol}:
         {json.dumps(news_events[:5])}
-        
-        Provide a 1-sentence summary of the prevailing market sentiment for this currency pair today.
+        Your goal is to provide a concise, professional Institutional Narrative for a 5-minute scalp signal.
+        Use Smart Money Concepts (SMC) terminology:
+        - Identify Liquidity Sweeps (Session Highs/Lows)
+        - Mention Fair Value Gaps (FVG) or Imbalances
+        - Look for Displacement and Order Blocks (OB)
+        - Confirm Trend alignment via EMAs.
+
+        Output format: "Institutional Rationale: [1-2 sentences using SMC terms]. Why now: [1 sentence on momentum]."
+        Keep it brief but expert-level.
         """
         
         try:

@@ -45,27 +45,41 @@ class EntryLogic:
         return None
 
     @staticmethod
-    def calculate_levels(df: pd.DataFrame, direction: str, sweep_level: float, atr: float):
+    def calculate_levels(df: pd.DataFrame, direction: str, sweep_level: float, atr: float, t=None):
         """
-        Calculates Stop Loss and Take Profit levels (V7.0 Liquid Reaper).
+        Calculates Stop Loss and Take Profit levels (V8.0 Session Adaptive).
         """
         latest_price = df.iloc[-1]['close']
         
+        # Session Tuning (V8.0)
+        # Default TP2 multiplier is 1.5
+        tp2_mult = ATR_MULTIPLIER 
+        
+        if t:
+            hour = t.hour
+            # NY Session (13-21 UTC): High Volatility -> Target Higher Gains
+            if 13 <= hour <= 21:
+                tp2_mult = 2.0 
+            # Asian Session (00-08 UTC): Range Bound -> Target Quicker Exits
+            elif 0 <= hour <= 8:
+                tp2_mult = 1.2
+        
         if direction == "BUY":
             sl = sweep_level - (0.5 * atr)
-            tp0 = latest_price + (0.5 * atr)  # Partial TP / Aggressive BE trigger
+            tp0 = latest_price + (0.5 * atr)
             tp1 = latest_price + (1.0 * atr)
-            tp2 = latest_price + (ATR_MULTIPLIER * atr)
+            tp2 = latest_price + (tp2_mult * atr)
         else:
             sl = sweep_level + (0.5 * atr)
-            tp0 = latest_price - (0.5 * atr)  # Partial TP / Aggressive BE trigger
+            tp0 = latest_price - (0.5 * atr)
             tp1 = latest_price - (1.0 * atr)
-            tp2 = latest_price - (ATR_MULTIPLIER * atr)
+            tp2 = latest_price - (tp2_mult * atr)
             
         return {
             'entry': latest_price,
             'sl': sl,
             'tp0': tp0,
             'tp1': tp1,
-            'tp2': tp2
+            'tp2': tp2,
+            'tp2_mult': tp2_mult
         }

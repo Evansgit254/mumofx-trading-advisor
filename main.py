@@ -27,6 +27,7 @@ from ai.analyst import AIAnalyst
 from filters.correlation import CorrelationAnalyzer
 from filters.risk_manager import RiskManager
 from tools.tv_renderer import TVChartRenderer
+from audit.journal import SignalJournal
 
 import joblib
 import os
@@ -199,7 +200,7 @@ async def process_symbol(symbol: str, data: dict, news_events: list, ai_analyst:
     # 11. Alert
     if confidence >= MIN_CONFIDENCE_SCORE:
         atr = m5_df.iloc[-1]['atr']
-        levels = EntryLogic.calculate_levels(m5_df, direction, sweep['level'], atr)
+        levels = EntryLogic.calculate_levels(m5_df, direction, sweep['level'], atr, t=m5_df.index[-1])
         
         # V3.2: Risk Management for $50 Account
         risk_details = RiskManager.calculate_lot_size(symbol, m5_df.iloc[-1]['close'], levels['sl'])
@@ -276,9 +277,13 @@ async def main():
     # 12. V6.3: Chart Generation (Headless TradingView)
     if filtered_signals:
         renderer = TVChartRenderer()
+        journal = SignalJournal()
         await renderer.start()
         
         for signal in filtered_signals:
+            # V8.0: Persistent Journaling
+            journal.log_signal(signal)
+            
             message = telegram_service.format_signal(signal)
             symbol = signal['symbol']
             m5_df = market_data[symbol]['m5']
