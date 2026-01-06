@@ -86,3 +86,13 @@ class ScoringEngine:
             score += 1.0 # Reward elite Gold setups
             
         return round(score, 1)
+
+    @staticmethod
+    def get_quality_seal(score: float) -> str:
+        """
+        Classifies the setup quality based on its quant score.
+        """
+        if score >= 9.0: return "PREMIER A+"
+        if score >= 7.5: return "SOLID A"
+        if score >= 6.0: return "STANDARD B"
+        return "LOW ❌"

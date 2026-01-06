@@ -13,3 +13,5 @@ pytest-asyncio
 scikit-learn
 joblib
 playwright
+gspread==6.0.0
+oauth2client==4.1.3

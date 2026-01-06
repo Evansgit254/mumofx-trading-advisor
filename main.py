@@ -197,13 +197,19 @@ async def process_symbol(symbol: str, data: dict, news_events: list, ai_analyst:
         else:
             confluence_text = "📊 *DXY Confluence:* ⚠️ Divergence from Dollar trend."
 
-    # 11. Alert
+    # 11. Final Quality Seal
+    quality = ScoringEngine.get_quality_seal(confidence)
+    
+    # 12. Alert
     if confidence >= MIN_CONFIDENCE_SCORE:
         atr = m5_df.iloc[-1]['atr']
         levels = EntryLogic.calculate_levels(m5_df, direction, sweep['level'], atr, t=m5_df.index[-1])
         
         # V3.2: Risk Management for $50 Account
         risk_details = RiskManager.calculate_lot_size(symbol, m5_df.iloc[-1]['close'], levels['sl'])
+
+        # V9.0: Positioning Layers
+        layers = RiskManager.calculate_layers(risk_details['lots'], m5_df.iloc[-1]['close'], levels['sl'], direction)
 
         upcoming_news = NewsFilter.get_upcoming_events(news_events, symbol)
         news_warning = ""

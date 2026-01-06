@@ -6,3 +6,5 @@ outputs/
 logs/
 data/historical/
 *.png
+fxblue_history.csv
+logs/

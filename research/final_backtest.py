@@ -9,6 +9,7 @@ from indicators.calculations import IndicatorCalculator
 from strategy.displacement import DisplacementAnalyzer
 from strategy.entry import EntryLogic
 from strategy.scoring import ScoringEngine
+from filters.session_filter import SessionFilter
 
 # Load ML Model
 ML_MODEL = None
@@ -55,6 +56,11 @@ async def run_final_backtest(days=30):
             prev_low = state_m15.iloc[-21:-1]['low'].min()
             prev_high = state_m15.iloc[-21:-1]['high'].max()
             
+            # Ensure valid session (London Open or Extended NY)
+            if not SessionFilter.is_valid_session(t):
+                idx += 1
+                continue
+
             direction = None
             sweep_level = None
             if h1_trend_val == 1 and latest_m15['low'] < prev_low < latest_m15['close']:
