@@ -16,7 +16,7 @@ async def test_tv_render():
         'volume': [1000 for _ in range(200)]
     }, index=dates)
     
-    # Signal details
+    # Signal details with VERY distinct levels to avoid overlap
     signal = {
         'symbol': 'EURUSD',
         'direction': 'BUY',
@@ -27,17 +27,19 @@ async def test_tv_render():
         'adr_usage': 45,
         'ai_logic': 'Strong displacement from Asian High with EMA alignment.',
         'entry_price': 1.0700,
-        'sl': 1.0690,
-        'tp1': 1.0720,
-        'tp2': 1.0750
+        'sl': 1.0650, # 50 pips away
+        'tp1': 1.0750, # 50 pips away
+        'tp2': 1.0800  # 100 pips away
     }
+    
+    print(f"DEBUG: Entry={signal['entry_price']}, SL={signal['sl']}, TP1={signal['tp1']}, TP2={signal['tp2']}")
     
     try:
         buf = await TVChartRenderer.render_chart('EURUSD', df, signal)
         if buf:
-            with open("tv_chart_sample.png", "wb") as f:
+            with open("tv_chart_verified.png", "wb") as f:
                 f.write(buf.getvalue())
-            print("✅ TV Chart generated successfully (saved to tv_chart_sample.png)")
+            print("✅ TV Chart generated successfully (saved to tv_chart_verified.png)")
         else:
             print("❌ TV Chart generation failed (returned None)")
     except Exception as e:
