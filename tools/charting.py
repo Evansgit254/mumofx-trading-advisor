@@ -43,14 +43,28 @@ class ChartGenerator:
             linewidths=[1.5, 1.5, 1.0, 1.0]
         )
         
-        # Style
-        style = mpf.make_mpf_style(base_mpf_style='yahoo', gridstyle=':', facecolor='white')
+        # Custom "TradingView-like" Style
+        mc = mpf.make_marketcolors(
+            up='#26a69a', down='#ef5350', # TradingView standard Green/Red
+            edge='inherit',
+            wick='inherit',
+            volume='in',
+            ohlc='inherit'
+        )
+        
+        style = mpf.make_mpf_style(
+            base_mpf_style='yahoo', 
+            marketcolors=mc, 
+            gridstyle='--', 
+            facecolor='white',
+            gridcolor='#d1d5db'
+        )
         
         # Buffer to save image
         buf = io.BytesIO()
         
         # Plot
-        title = f"{symbol} - {direction} SETUP ({trade_details.get('setup_tf', '')})"
+        title = f"\n{symbol} - {direction} ({trade_details.get('setup_tf', 'M5')})"
         
         try:
             mpf.plot(
@@ -61,8 +75,9 @@ class ChartGenerator:
                 hlines=hlines,
                 title=title,
                 volume=False,
-                savefig=dict(fname=buf, dpi=100, bbox_inches='tight'),
-                figsize=(10, 6)
+                savefig=dict(fname=buf, dpi=120, bbox_inches='tight', pad_inches=0.5),
+                figsize=(12, 8),
+                tight_layout=True
             )
             buf.seek(0)
             return buf
