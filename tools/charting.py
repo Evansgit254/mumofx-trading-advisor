@@ -45,29 +45,22 @@ class ChartGenerator:
         
         # Custom "TradingView-like" Style
         mc = mpf.make_marketcolors(
-            up='#26a69a', down='#ef5350', # TradingView standard Green/Red
-            edge='inherit',
-            wick='inherit',
-            volume='in',
-            ohlc='inherit'
+            up='#26a69a', down='#ef5350',
+            edge='inherit', wick='inherit', volume='in', ohlc='inherit'
         )
-        
         style = mpf.make_mpf_style(
-            base_mpf_style='yahoo', 
-            marketcolors=mc, 
-            gridstyle='--', 
-            facecolor='white',
-            gridcolor='#d1d5db'
+            base_mpf_style='yahoo', marketcolors=mc, gridstyle='--', facecolor='white', gridcolor='#d1d5db'
         )
         
-        # Buffer to save image
+        # Buffer
         buf = io.BytesIO()
         
-        # Plot
+        # Title
         title = f"\n{symbol} - {direction} ({trade_details.get('setup_tf', 'M5')})"
         
         try:
-            mpf.plot(
+            # Plot with returnfig=True to get access to axes
+            fig, axlist = mpf.plot(
                 plot_df,
                 type='candle',
                 style=style,
@@ -75,12 +68,46 @@ class ChartGenerator:
                 hlines=hlines,
                 title=title,
                 volume=False,
-                savefig=dict(fname=buf, dpi=120, bbox_inches='tight', pad_inches=0.5),
                 figsize=(12, 8),
-                tight_layout=True
+                tight_layout=True,
+                returnfig=True
             )
+            
+            # Access the main ax (first one)
+            ax = axlist[0]
+            
+            # Create Info Box Content
+            ai_logic = trade_details.get('ai_logic', 'N/A')
+            # Truncate logic if too long
+            if len(ai_logic) > 60: ai_logic = ai_logic[:57] + "..."
+            
+            metrics_text = (
+                f"AI Rationale: {ai_logic}\n"
+                f"Confidence:   {trade_details.get('confidence', 0)}/10\n"
+                f"ML Win Prob:  {trade_details.get('win_prob', 0)*100:.1f}%\n"
+                f"EMA Slope:    {trade_details.get('ema_slope', 0):.3f}%\n"
+                f"ADR Usage:    {trade_details.get('adr_usage', 0)}%"
+            )
+            
+            # Add Text Box (AnchoredText)
+            # We need matplotlib.offsetbox for this
+            from matplotlib.offsetbox import AnchoredText
+            at = AnchoredText(
+                metrics_text,
+                loc='upper left',
+                prop=dict(size=9, family='monospace'),
+                frameon=True,
+            )
+            at.patch.set_boxstyle("round,pad=0.,rounding_size=0.2")
+            at.patch.set_alpha(0.8)
+            at.patch.set_facecolor('#f0f0f0') # Light gray background
+            ax.add_artist(at)
+            
+            # Save the figure
+            fig.savefig(buf, dpi=120, bbox_inches='tight', pad_inches=0.5)
             buf.seek(0)
             return buf
+            
         except Exception as e:
             print(f"Error generating chart for {symbol}: {e}")
             return None
