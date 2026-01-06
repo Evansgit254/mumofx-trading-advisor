@@ -2,7 +2,7 @@ pandas>=2.0.0
 numpy
 scipy
 yfinance>=0.2.31
-pandas_ta
+pandas-ta
 python-telegram-bot>=20.0
 python-dotenv
 pytz
