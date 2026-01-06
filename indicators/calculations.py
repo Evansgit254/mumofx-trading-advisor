@@ -20,8 +20,7 @@ class IndicatorCalculator:
         df[f'ema_{EMA_FAST}'] = ta.ema(df['close'], length=EMA_FAST)
         df[f'ema_{EMA_SLOW}'] = ta.ema(df['close'], length=EMA_SLOW)
         
-        if timeframe == "h1":
-            df[f'ema_{EMA_TREND}'] = ta.ema(df['close'], length=EMA_TREND)
+        df[f'ema_{EMA_TREND}'] = ta.ema(df['close'], length=EMA_TREND)
 
         # RSI
         df['rsi'] = ta.rsi(df['close'], length=RSI_PERIOD)

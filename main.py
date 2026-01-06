@@ -270,9 +270,25 @@ async def main():
     if theme_header:
         await telegram_service.send_signal(theme_header)
         
+from tools.charting import ChartGenerator
+
+# ... (inside main function)
+
     for signal in filtered_signals:
         message = telegram_service.format_signal(signal)
-        await telegram_service.send_signal(message)
+        
+        # 12. V6.3: Chart Generation
+        symbol = signal['symbol']
+        # M5 data is needed for chart
+        m5_df = market_data[symbol]['m5']
+        
+        print(f"📸 Generating chart for {symbol}...")
+        chart_image = ChartGenerator.generate_chart(symbol, m5_df, signal)
+        
+        if chart_image:
+            await telegram_service.send_chart(chart_image, message)
+        else:
+            await telegram_service.send_signal(message)
         
     print(f"Execution completed. Found {len(filtered_signals)} aligned signals.")
 

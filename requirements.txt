@@ -12,3 +12,5 @@ google-generativeai
 pytest-asyncio
 scikit-learn
 joblib
+mplfinance
+matplotlib

@@ -20,7 +20,20 @@ class TelegramService:
             await self.bot.send_message(chat_id=self.chat_id, text=message, parse_mode='Markdown')
         except Exception as e:
             print(f"Error sending Telegram message: {e}")
+    async def send_chart(self, photo, caption: str):
+        """
+        Sends a chart image with caption.
+        """
+        if not self.bot or not self.chat_id:
+            print("Telegram credentials missing. Chart not sent.")
+            return
 
+        try:
+            # Telegram requires file pointer to be at start
+            photo.seek(0) 
+            await self.bot.send_photo(chat_id=self.chat_id, photo=photo, caption=caption, parse_mode='Markdown')
+        except Exception as e:
+            print(f"Error sending Telegram chart: {e}")
     def format_signal(self, data: dict) -> str:
         """
         Formats signal data into the strict Telegram format.
