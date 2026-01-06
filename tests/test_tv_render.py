@@ -37,9 +37,9 @@ async def test_tv_render():
     try:
         buf = await TVChartRenderer.render_chart('EURUSD', df, signal)
         if buf:
-            with open("tv_chart_verified.png", "wb") as f:
+            with open("tv_chart_final.png", "wb") as f:
                 f.write(buf.getvalue())
-            print("✅ TV Chart generated successfully (saved to tv_chart_verified.png)")
+            print("✅ TV Chart generated successfully (saved to tv_chart_final.png)")
         else:
             print("❌ TV Chart generation failed (returned None)")
     except Exception as e:

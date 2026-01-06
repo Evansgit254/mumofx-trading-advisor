@@ -163,7 +163,8 @@
                 },
                 rightPriceScale: {
                     borderColor: 'rgba(197, 203, 206, 0.8)',
-                    scaleMargins: { top: 0.1, bottom: 0.1 }
+                    scaleMargins: { top: 0.1, bottom: 0.1 },
+                    autoScale: true,
                 },
                 timeScale: {
                     borderColor: 'rgba(197, 203, 206, 0.8)',
@@ -173,24 +174,43 @@
                 crosshair: {
                     mode: LightweightCharts.CrosshairMode.Normal,
                 },
+                localization: {
+                    priceFormatter: price => price.toFixed(5),
+                },
             });
 
             // 3. Add Series
+            const priceFormat = {
+                type: 'price',
+                precision: 5,
+                minMove: 0.00001,
+            };
+
             // Candles
             const candleSeries = chart.addSeries(LightweightCharts.CandlestickSeries, {
                 upColor: '#009688', downColor: '#ef5350',
-                borderVisible: false, wickUpColor: '#009688', wickDownColor: '#ef5350'
+                borderVisible: false, wickUpColor: '#009688', wickDownColor: '#ef5350',
+                priceFormat: priceFormat
             });
             candleSeries.setData(chartData.candles);
 
             // EMAs
-            const ema20 = chart.addSeries(LightweightCharts.LineSeries, { color: '#2962ff', lineWidth: 1, title: 'EMA 20' });
+            const ema20 = chart.addSeries(LightweightCharts.LineSeries, {
+                color: '#2962ff', lineWidth: 1, title: 'EMA 20',
+                priceFormat: priceFormat
+            });
             ema20.setData(chartData.indicators.ema20);
 
-            const ema50 = chart.addSeries(LightweightCharts.LineSeries, { color: '#ff6d00', lineWidth: 1, title: 'EMA 50' });
+            const ema50 = chart.addSeries(LightweightCharts.LineSeries, {
+                color: '#ff6d00', lineWidth: 1, title: 'EMA 50',
+                priceFormat: priceFormat
+            });
             ema50.setData(chartData.indicators.ema50);
 
-            const ema100 = chart.addSeries(LightweightCharts.LineSeries, { color: '#9c27b0', lineWidth: 2, title: 'TREND' });
+            const ema100 = chart.addSeries(LightweightCharts.LineSeries, {
+                color: '#9c27b0', lineWidth: 2, title: 'TREND',
+                priceFormat: priceFormat
+            });
             ema100.setData(chartData.indicators.ema100);
 
             // Trade Lines (Horizontal) via Price Lines
