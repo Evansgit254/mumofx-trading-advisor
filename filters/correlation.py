@@ -4,7 +4,9 @@ class CorrelationAnalyzer:
         "GBPUSD": ("GBP", "USD"),
         "USDJPY": ("USD", "JPY"),
         "AUDUSD": ("AUD", "USD"),
-        "GC": ("XAU", "USD"), # Gold
+        "GC": ("XAU", "USD"), # Gold Futures
+        "GC=F": ("XAU", "USD"),
+        "XAUUSD": ("XAU", "USD"),
     }
 
     @staticmethod

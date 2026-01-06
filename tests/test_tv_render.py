@@ -35,11 +35,15 @@ async def test_tv_render():
     print(f"DEBUG: Entry={signal['entry_price']}, SL={signal['sl']}, TP1={signal['tp1']}, TP2={signal['tp2']}")
     
     try:
-        buf = await TVChartRenderer.render_chart('EURUSD', df, signal)
+        renderer = TVChartRenderer()
+        await renderer.start()
+        buf = await renderer.render_chart('EURUSD', df, signal)
+        await renderer.stop()
+        
         if buf:
-            with open("tv_chart_beginner.png", "wb") as f:
+            with open("tv_chart_final.png", "wb") as f:
                 f.write(buf.getvalue())
-            print("✅ TV Chart generated successfully (saved to tv_chart_beginner.png)")
+            print("✅ TV Chart generated successfully (saved to tv_chart_final.png)")
         else:
             print("❌ TV Chart generation failed (returned None)")
     except Exception as e:

@@ -222,6 +222,7 @@ async def process_symbol(symbol: str, data: dict, news_events: list, ai_analyst:
             'entry_zone': f"{m5_df.iloc[-1]['close']:.5f} - {m5_df.iloc[-1]['close'] + (0.0001 if direction == 'BUY' else -0.0001):.5f}",
             'entry_price': m5_df.iloc[-1]['close'],
             'sl': levels['sl'],
+            'tp0': levels['tp0'],
             'tp1': levels['tp1'],
             'tp2': levels['tp2'],
             'atr_status': atr_status,
@@ -272,20 +273,28 @@ async def main():
     if theme_header:
         await telegram_service.send_signal(theme_header)
         
-    for signal in filtered_signals:
-        message = telegram_service.format_signal(signal)
+    # 12. V6.3: Chart Generation (Headless TradingView)
+    if filtered_signals:
+        renderer = TVChartRenderer()
+        await renderer.start()
         
-        # 12. V6.3: Chart Generation (Headless TradingView)
-        symbol = signal['symbol']
-        m5_df = market_data[symbol]['m5']
-        
-        print(f"📸 Rendering Pro-Chart for {symbol}...")
-        chart_image = await TVChartRenderer.render_chart(symbol, m5_df, signal)
-        
-        if chart_image:
-            await telegram_service.send_chart(chart_image, message)
-        else:
-            await telegram_service.send_signal(message)
+        for signal in filtered_signals:
+            message = telegram_service.format_signal(signal)
+            symbol = signal['symbol']
+            m5_df = market_data[symbol]['m5']
+            
+            print(f"📸 Rendering Pro-Chart for {symbol}...")
+            try:
+                chart_image = await renderer.render_chart(symbol, m5_df, signal)
+                if chart_image:
+                    await telegram_service.send_chart(chart_image, message)
+                else:
+                    await telegram_service.send_signal(message)
+            except Exception as e:
+                print(f"❌ Chart Error for {symbol}: {e}")
+                await telegram_service.send_signal(message)
+                
+        await renderer.stop()
         
     print(f"Execution completed. Found {len(filtered_signals)} aligned signals.")
 

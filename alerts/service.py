@@ -72,10 +72,15 @@ class TelegramService:
 • {data['sl']:.5f} (below sweep)
 
 *Take Profit:*
+• TP0 (Partial + BE): {data['tp0']:.5f} (Close 50%)
 • TP1: {data['tp1']:.5f}
 • TP2: {data['tp2']:.5f}
 
-🛡️ *PROFIT GUARD:* Move SL to Breakeven at TP1.
+🪓 *LIQUID REAPER MANAGEMENT:*
+1. **At TP0:** Close 50% of position and MOVE SL TO BREAKEVEN.
+2. **At TP1:** Trail SL to TP0 (Lock in more profit).
+3. **Final Target:** Let remaining 50% run to TP2.
+4. **Safety Filter:** If price fails to hit TP0 but stalls for 30 mins, exit manually at BE.
 
 *ATR:* {data['atr_status']}
 *Session:* {data['session']}
