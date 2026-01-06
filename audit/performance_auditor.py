@@ -4,21 +4,29 @@ from datetime import datetime
 from audit.journal import SignalJournal
 from data.fetcher import DataFetcher
 from config.config import SYMBOLS
+import sqlite3
+import sys
 
 class PerformanceAuditor:
     def __init__(self):
         self.journal = SignalJournal()
         self.fetcher = DataFetcher()
 
-    async def resolve_pending_trades(self):
-        print("🔍 Auditing Live Performance...")
-        pending = self.journal.get_pending_signals()
+    async def resolve_trades(self, force=False):
+        print(f"🔍 Auditing Live Performance (Force Mode: {force})...")
+        if force:
+            with sqlite3.connect(self.journal.db_path) as conn:
+                conn.row_factory = sqlite3.Row
+                cursor = conn.execute("SELECT * FROM signals")
+                signals = [dict(row) for row in cursor.fetchall()]
+        else:
+            signals = self.journal.get_pending_signals()
         
-        if not pending:
-            print("✅ No pending trades to audit.")
+        if not signals:
+            print("✅ No trades to audit.")
             return
 
-        for signal in pending:
+        for signal in signals:
             symbol = signal['symbol']
             t_start = pd.to_datetime(signal['timestamp'])
             
@@ -84,10 +92,11 @@ class PerformanceAuditor:
                         result_pips = (entry - curr_sl) * 10000
                         break
             
-            if result_status != 'PENDING':
+            if result_status != 'PENDING' and result_status != signal['status']:
                 print(f"✅ Resolved {symbol} @ {t_start}: {result_status} ({result_pips:.1f} pips)")
                 self.journal.update_signal_result(signal['id'], result_status, result_pips)
 
 if __name__ == "__main__":
+    force_mode = "--force" in sys.argv
     auditor = PerformanceAuditor()
-    asyncio.run(auditor.resolve_pending_trades())
+    asyncio.run(auditor.resolve_trades(force=force_mode))
