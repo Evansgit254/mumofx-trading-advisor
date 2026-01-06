@@ -45,6 +45,20 @@ class SignalJournal:
                 signal_data['session']
             ))
 
+    def get_pending_signals(self):
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.execute("SELECT * FROM signals WHERE status = 'PENDING'")
+            return [dict(row) for row in cursor.fetchall()]
+
+    def update_signal_result(self, signal_id, status, pips):
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("""
+                UPDATE signals 
+                SET status = ?, result_pips = ? 
+                WHERE id = ?
+            """, (status, pips, signal_id))
+
     def get_todays_stats(self):
         today = datetime.now().strftime("%Y-%m-%d")
         with sqlite3.connect(self.db_path) as conn:

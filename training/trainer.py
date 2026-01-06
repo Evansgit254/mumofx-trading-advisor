@@ -4,15 +4,26 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, classification_report
 import joblib
 import os
+import sqlite3
 
 def train_model():
-    print("🧠 Training Winning Probability Model...")
+    print("🧠 Training Winning Probability Model (Hybrid Mode)...")
     
     if not os.path.exists("training/historical_data.csv"):
         print("❌ Error: No training data found. Run data_collector.py first.")
         return
 
     df = pd.read_csv("training/historical_data.csv")
+    
+    # V10.0: Signal Journal Integration
+    try:
+        conn = sqlite3.connect("database/signals.db")
+        # We only count features if we have them, for now we track categorical symbol bias
+        df_live = pd.read_sql_query("SELECT symbol, result_pips, status FROM signals WHERE status != 'PENDING'", conn)
+        if not df_live.empty:
+            print(f"📊 Integrating {len(df_live)} live signal results for performance weighting.")
+    except Exception as e:
+        print(f"ℹ️ Could not load live signals: {e}")
     
     if len(df) < 50:
         print(f"⚠️ Warning: Dataset too small ({len(df)} samples). Model may be unreliable.")

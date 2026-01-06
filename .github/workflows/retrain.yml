@@ -31,12 +31,16 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           export PYTHONPATH=$PYTHONPATH:.
+          echo "🔍 Resolving Live Signal Outcomes..."
+          python audit/performance_auditor.py
           echo "📊 Collecting Data..."
           python training/data_collector.py
           echo "🧠 Training Model..."
           python training/trainer.py
           echo "📈 Optimizing Parameters..."
           python training/optimizer.py
+          echo "🤖 Generating Strategy Advisor Report..."
+          python audit/advisor.py
 
       - name: Commit and Push Updates
         run: |
