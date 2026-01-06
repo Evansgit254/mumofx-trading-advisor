@@ -52,15 +52,16 @@ class EntryLogic:
         latest_price = df.iloc[-1]['close']
         
         if direction == "BUY":
-            sl = sweep_level - (0.2 * atr)
+            sl = sweep_level - (0.5 * atr)
             tp1 = latest_price + (1.0 * atr)
             tp2 = latest_price + (ATR_MULTIPLIER * atr)
         else:
-            sl = sweep_level + (0.2 * atr)
+            sl = sweep_level + (0.5 * atr)
             tp1 = latest_price - (1.0 * atr)
             tp2 = latest_price - (ATR_MULTIPLIER * atr)
             
         return {
+            'entry': latest_price,
             'sl': sl,
             'tp1': tp1,
             'tp2': tp2

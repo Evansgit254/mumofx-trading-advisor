@@ -1,13 +1,23 @@
 import asyncio
 import pandas as pd
 from datetime import datetime
-from config.config import SYMBOLS, MIN_CONFIDENCE_SCORE, NARRATIVE_TF, STRUCTURE_TF, ENTRY_TF
+from config.config import (
+    SYMBOLS, 
+    MIN_CONFIDENCE_SCORE, 
+    NARRATIVE_TF, 
+    STRUCTURE_TF, 
+    ENTRY_TF,
+    ADR_THRESHOLD_PERCENT,
+    ASIAN_RANGE_MIN_PIPS,
+    EMA_TREND
+)
 from data.fetcher import DataFetcher
 from indicators.calculations import IndicatorCalculator
 from structure.bias import BiasAnalyzer
 from liquidity.sweep_detector import LiquidityDetector
 from strategy.displacement import DisplacementAnalyzer
 from strategy.entry import EntryLogic
+from strategy.scoring import ScoringEngine
 from filters.session_filter import SessionFilter
 from filters.volatility_filter import VolatilityFilter
 from filters.news_filter import NewsFilter
@@ -16,7 +26,7 @@ from alerts.service import TelegramService
 from ai.analyst import AIAnalyst
 from filters.correlation import CorrelationAnalyzer
 from filters.risk_manager import RiskManager
-from config.config import SYMBOLS, MIN_CONFIDENCE_SCORE, NARRATIVE_TF, STRUCTURE_TF, ENTRY_TF, ADR_THRESHOLD_PERCENT, ASIAN_RANGE_MIN_PIPS
+
 import joblib
 import os
 
@@ -89,7 +99,10 @@ async def process_symbol(symbol: str, data: dict, news_events: list, ai_analyst:
         # Calculate Pips for quality check
         raw_range = asian_range['high'] - asian_range['low']
         pips = raw_range * 100 if "JPY" in symbol else raw_range * 10000
-        if pips >= ASIAN_RANGE_MIN_PIPS:
+        
+        # Gold Specialist: 20 pips required for quality, others 15
+        min_pips = 20 if symbol == "GC=F" else ASIAN_RANGE_MIN_PIPS
+        if pips >= min_pips:
             asian_quality = True
             
         if direction == "BUY" and m5_df.iloc[-1]['low'] < asian_range['low']:
@@ -102,7 +115,15 @@ async def process_symbol(symbol: str, data: dict, news_events: list, ai_analyst:
     atr = m5_df.iloc[-1]['atr']
     at_value = abs(m5_df.iloc[-1]['close'] - poc) <= (0.5 * atr) # Within 0.5 ATR of Value
 
-    # 9. Scoring
+    # 10. V6.0 Anti-Trap: EMA Velocity (Slope)
+    ema_slope = IndicatorCalculator.calculate_ema_slope(h1_df, f'ema_{EMA_TREND}')
+    
+    # 11. V6.1 Liquid Shield: Hyper-Extension (H1 Dist)
+    h1_close = h1_df.iloc[-1]['close']
+    h1_ema = h1_df.iloc[-1][f'ema_{EMA_TREND}']
+    h1_dist = (h1_close - h1_ema) / h1_ema if h1_ema != 0 else 0
+
+    # 12. Scoring
     score_details = {
         'h1_aligned': h1_trend == direction.replace('BUY', 'BULLISH').replace('SELL', 'BEARISH'),
         'sweep_type': sweep['type'],
@@ -113,11 +134,15 @@ async def process_symbol(symbol: str, data: dict, news_events: list, ai_analyst:
         'asian_sweep': asian_sweep,
         'asian_quality': asian_quality,
         'adr_exhausted': adr_exhausted,
-        'at_value': at_value
+        'at_value': at_value,
+        'ema_slope': ema_slope,
+        'h1_dist': h1_dist,
+        'symbol': symbol,
+        'direction': direction
     }
     confidence = ScoringEngine.calculate_score(score_details)
 
-    # 8. AI Market Intelligence (Confirmation)
+    # 12. AI Market Intelligence (Confirmation)
     ai_result = {"valid": True, "institutional_logic": "Standard liquidity alignment."}
     
     # Gold Specialist: Lower AI trigger to 8.5 for GC=F
@@ -211,7 +236,8 @@ async def process_symbol(symbol: str, data: dict, news_events: list, ai_analyst:
             'adr_exhausted': adr_exhausted,
             'adr_usage': round((current_range / adr * 100), 1) if adr > 0 else 0,
             'at_value': at_value,
-            'poc': poc
+            'poc': poc,
+            'ema_slope': ema_slope
         }
     
     return None

@@ -100,3 +100,23 @@ class IndicatorCalculator:
         # Get the middle price of the winning bin
         winning_bin = volume_profile.idxmax()
         return winning_bin.mid
+
+    @staticmethod
+    def calculate_ema_slope(df: pd.DataFrame, ema_col: str) -> float:
+        """
+        Calculates the normalized velocity (slope) of an EMA.
+        Returns % change over the last 3 bars.
+        """
+        if df.empty or ema_col not in df.columns: return 0.0
+        
+        subset = df[ema_col].tail(3)
+        if len(subset) < 3: return 0.0
+        
+        start_val = subset.iloc[0]
+        end_val = subset.iloc[-1]
+        
+        if start_val == 0: return 0.0
+        
+        # Normalized slope in % change
+        slope = ((end_val - start_val) / start_val) * 100
+        return round(slope, 4)

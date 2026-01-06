@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Trading Settings
-SYMBOLS = ["EURUSD=X", "GBPUSD=X", "USDJPY=X", "AUDUSD=X", "USDCAD=X", "NZDUSD=X", "GC=F", "^GSPC", "^IXIC"]
+SYMBOLS = ["EURUSD=X", "GBPUSD=X", "USDCAD=X", "NZDUSD=X", "GC=F", "^IXIC"]
 DXY_SYMBOL = "DX-Y.NYB"
 NARRATIVE_TF = "1h"
 STRUCTURE_TF = "15m"

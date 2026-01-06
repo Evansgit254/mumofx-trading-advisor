@@ -62,14 +62,17 @@ class TelegramService:
 • TP1: {data['tp1']:.5f}
 • TP2: {data['tp2']:.5f}
 
+🛡️ *PROFIT GUARD:* Move SL to Breakeven at TP1.
+
 *ATR:* {data['atr_status']}
 *Session:* {data['session']}
 📊 *Confidence:* {data['confidence']} / 10
 🤖 *ML Win Probability:* {data['win_prob']*100:.1f}%
 
-🎯 *Ultra-Quant (V5.2):*
+🎯 *Alpha Sniper (V6.0):*
 • Session Sniper: {"✅ ASIAN SWEEP" if data.get('asian_sweep') else "Standard Liquidity"} {"(High Quality)" if data.get('asian_quality') else "(Low Range)"}
 • Volume Sniper: {"⚠️ UNSAFE VALUE ZONE" if data.get('at_value') else "✅ EXTREME VALUE (INSTITUTIONAL)"} (POC: {data.get('poc'):.5f})
+• Momentum Sniper: {"✅ IDEAL VELOCITY" if abs(data.get('ema_slope', 0)) < 0.05 else "⚠️ STEEP TREND (RISKY)"} (Slope: {data.get('ema_slope', 0):.4f}%)
 • ADR Usage: {data.get('adr_usage')}% {"⚠️ EXHAUSTED" if data.get('adr_exhausted') else "✅ HEALTHY"}
 
 {data.get('news_warning', '')}
