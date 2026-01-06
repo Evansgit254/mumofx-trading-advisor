@@ -23,13 +23,20 @@ async def test_tv_render():
         'setup_tf': 'M15',
         'confidence': 9.5,
         'win_prob': 0.92,
+        'setup_quality': 'A+ PREMIER',
         'ema_slope': 0.12,
         'adr_usage': 45,
         'ai_logic': 'Institutional buying detected (SMC). Price has swept lower liquidity and is now reversing with momentum.',
         'entry_price': 1.0700,
-        'sl': 1.0650, # 50 pips away
-        'tp1': 1.0800, # 100 pips away (2:1 RR)
-        'tp2': 1.0850
+        'sl': 1.0650, 
+        'tp0': 1.0725,
+        'tp1': 1.0800, 
+        'tp2': 1.0850,
+        'layers': [
+            {'label': 'Aggressive Layer', 'price': 1.0700, 'lots': 0.01},
+            {'label': 'Optimal Retest', 'price': 1.0685, 'lots': 0.01},
+            {'label': 'Safety Layer', 'price': 1.0670, 'lots': 0.01}
+        ]
     }
     
     print(f"DEBUG: Entry={signal['entry_price']}, SL={signal['sl']}, TP1={signal['tp1']}, TP2={signal['tp2']}")

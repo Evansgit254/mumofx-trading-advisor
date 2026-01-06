@@ -39,18 +39,24 @@ class TelegramService:
         Formats signal data into the strict Telegram format.
         """
         header = "⚡ *SMC TOP-DOWN SETUP*"
+        emoji = "⚡" # Default emoji
         if "GC=F" in data.get('symbol', ''):
-            header = "🏆 *GOLD SNIPER ELITE SETUP* 🥇"
-
+            emoji = "🚀" if data['direction'] == "BUY" else "☄️"
+        
         return f"""
-{header}
+{emoji} *NEW {data['setup_quality']} SETUP*
+*Symbol:* #{data['symbol'].replace('=X', '')}
+*Market Bias:* {data['direction']} (Institutional)
+*TF:* {data['entry_tf']} | {data['session']} Session
 
-*Pair:* {data['pair']}
-*Direction:* {data['direction']}
-*Style:* Intraday (SMC)
-*Narrative (1H):* {data['h1_trend']}
-*Setup TF:* {data['setup_tf']}
-*Entry TF:* {data['entry_tf']}
+🎯 *LIQUID LAYERING (Milking Zone):*
+1. {data['layers'][0]['label']}: **{data['layers'][0]['lots']} lots** @ {data['layers'][0]['price']:.5f}
+2. {data['layers'][1]['label']}: **{data['layers'][1]['lots']} lots** @ {data['layers'][1]['price']:.5f}
+3. {data['layers'][2]['label']}: **{data['layers'][2]['lots']} lots** @ {data['layers'][2]['price']:.5f}
+_Total Vol: {sum(l['lots'] for l in data['layers']):.2f}_
+
+🛑 *Stop Loss:*
+• {data['sl']:.5f} (below sweep)
 
 *Liquidity Event:*
 • {data['liquidity_event']}

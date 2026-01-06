@@ -59,3 +59,30 @@ class RiskManager:
             'pips': round(pips, 1),
             'warning': risk_warning
         }
+
+    @staticmethod
+    def calculate_layers(total_lots: float, entry: float, sl: float, direction: str) -> list:
+        """
+        Splits total lot size into 3 strategic layers (V9.0 Liquid Layering).
+        """
+        # Distribute: 40% (Market), 40% (Retest), 20% (Defensive)
+        l1_lots = max(MIN_LOT_SIZE, round(total_lots * 0.4, 2))
+        l2_lots = max(MIN_LOT_SIZE, round(total_lots * 0.4, 2))
+        l3_lots = max(MIN_LOT_SIZE, round(total_lots * 0.2, 2))
+        
+        # Calculate Price Levels for Layers
+        dist = abs(entry - sl)
+        if direction == "BUY":
+            l1_price = entry
+            l2_price = entry - (dist * 0.3) # 30% pullback
+            l3_price = entry - (dist * 0.6) # 60% deep retest
+        else:
+            l1_price = entry
+            l2_price = entry + (dist * 0.3)
+            l3_price = entry + (dist * 0.6)
+            
+        return [
+            {'label': 'Aggressive Layer (40%)', 'price': l1_price, 'lots': l1_lots},
+            {'label': 'Optimal Retest (40%)', 'price': l2_price, 'lots': l2_lots},
+            {'label': 'Safety Layer (20%)', 'price': l3_price, 'lots': l3_lots}
+        ]
