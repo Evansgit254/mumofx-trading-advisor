@@ -252,7 +252,7 @@ async def main():
     else:
         print("🚀 V9.0 LIQUID REAPER LIVE SCANNER STARTING...")
     
-    print("Monitoring: EURUSD, GBPUSD, USDCAD, NZDUSD, GOLD (XAUUSD), NASDAQ")
+    print(f"Monitoring: {', '.join([s.split('=')[0].replace('^IXIC', 'NASDAQ') for s in SYMBOLS])}")
     
     telegram_service = TelegramService()
     ai_analyst = AIAnalyst()

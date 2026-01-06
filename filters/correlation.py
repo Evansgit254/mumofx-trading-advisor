@@ -7,6 +7,8 @@ class CorrelationAnalyzer:
         "GC": ("XAU", "USD"), # Gold Futures
         "GC=F": ("XAU", "USD"),
         "XAUUSD": ("XAU", "USD"),
+        "CL=F": ("WTI", "USD"), # Crude Oil
+        "CL": ("WTI", "USD"),
     }
 
     @staticmethod
