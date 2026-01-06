@@ -20,8 +20,15 @@ async def test_manual_signal():
         'ai_logic': 'Manual bypass for connectivity verification.',
         'entry_zone': '1.0500',
         'sl': 1.0480,
+        'tp0': 1.0510,
         'tp1': 1.0520,
         'tp2': 1.0550,
+        'setup_quality': 'A+ PREMIER',
+        'layers': [
+            {'label': 'Aggressive Layer', 'price': 1.0500, 'lots': 0.01},
+            {'label': 'Optimal Retest', 'price': 1.0495, 'lots': 0.01},
+            {'label': 'Safety Layer', 'price': 1.0490, 'lots': 0.01}
+        ],
         'atr_status': 'Normal',
         'session': 'TEST',
         'confidence': 10.0,

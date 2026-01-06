@@ -19,8 +19,8 @@ class NewsFetcher:
             else:
                 print(f"Failed to fetch news: {response.status_code}")
                 return []
-        except Exception as e:
-            print(f"Error fetching news: {e}")
+        except Exception:
+            # Silent fail for news to avoid log spam, system will default to no-news safety
             return []
 
     @staticmethod

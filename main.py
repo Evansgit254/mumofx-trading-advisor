@@ -245,61 +245,87 @@ async def process_symbol(symbol: str, data: dict, news_events: list, ai_analyst:
     return None
 
 async def main():
-    print(f"🚀 Starting SMC Top-Down Intraday Engine... {datetime.now()}")
+    is_actions = os.getenv("GITHUB_ACTIONS") == "true"
     
-    # 1. Fetch News
-    news_events = NewsFetcher.fetch_news()
+    if is_actions:
+        print("🤖 GITHUB ACTIONS DETECTED: Running Single-Shot Scan (V9.0)")
+    else:
+        print("🚀 V9.0 LIQUID REAPER LIVE SCANNER STARTING...")
     
-    # 2. Fetch Market Data
-    fetcher = DataFetcher()
-    market_data = fetcher.get_latest_data()
+    print("Monitoring: EURUSD, GBPUSD, USDCAD, NZDUSD, GOLD (XAUUSD), NASDAQ")
     
     telegram_service = TelegramService()
     ai_analyst = AIAnalyst()
+    renderer = TVChartRenderer()
+    journal = SignalJournal()
     
-    tasks = []
-    for symbol, data in market_data.items():
-        if symbol == 'DXY': continue
-        tasks.append(process_symbol(symbol, data, news_events, ai_analyst, market_data))
+    # Track sent signals to avoid duplicates on the same candle (only used in local loop)
+    last_processed_candle = {symbol: None for symbol in SYMBOLS}
     
-    potential_signals = await asyncio.gather(*tasks)
-    valid_signals = [s for s in potential_signals if s is not None]
-    
-    # 3. Correlation Filter (V3.0)
-    filtered_signals = CorrelationAnalyzer.filter_signals(valid_signals)
-    theme_header = CorrelationAnalyzer.group_by_theme(filtered_signals)
-    
-    if theme_header:
-        await telegram_service.send_signal(theme_header)
-        
-    # 12. V6.3: Chart Generation (Headless TradingView)
-    if filtered_signals:
-        renderer = TVChartRenderer()
-        journal = SignalJournal()
-        await renderer.start()
-        
-        for signal in filtered_signals:
-            # V8.0: Persistent Journaling
-            journal.log_signal(signal)
+    while True:
+        try:
+            now = datetime.now().strftime("%H:%M:%S")
+            print(f"🕒 [{now}] Scanning market for Institutional Setups...")
             
-            message = telegram_service.format_signal(signal)
-            symbol = signal['symbol']
-            m5_df = market_data[symbol]['m5']
+            # 1. Fetch News
+            news_events = NewsFetcher.fetch_news()
             
-            print(f"📸 Rendering Pro-Chart for {symbol}...")
-            try:
-                chart_image = await renderer.render_chart(symbol, m5_df, signal)
-                if chart_image:
-                    await telegram_service.send_chart(chart_image, message)
-                else:
-                    await telegram_service.send_signal(message)
-            except Exception as e:
-                print(f"❌ Chart Error for {symbol}: {e}")
-                await telegram_service.send_signal(message)
+            # 2. Fetch Market Data
+            fetcher = DataFetcher()
+            market_data = fetcher.get_latest_data()
+            
+            tasks = []
+            for symbol, data in market_data.items():
+                if symbol == 'DXY': continue
                 
-        await renderer.stop()
-        
-    print(f"Execution completed. Found {len(filtered_signals)} aligned signals.")
+                # Deduplication (only for local continuous mode)
+                if not is_actions:
+                    latest_time = data['m5'].index[-1]
+                    if last_processed_candle.get(symbol) == latest_time:
+                        continue
+                    last_processed_candle[symbol] = latest_time
+                
+                tasks.append(process_symbol(symbol, data, news_events, ai_analyst, market_data))
+            
+            if not tasks:
+                if is_actions: break
+                await asyncio.sleep(60)
+                continue
+
+            potential_signals = await asyncio.gather(*tasks)
+            valid_signals = [s for s in potential_signals if s is not None]
+            
+            # 3. Correlation Filter (V3.0)
+            filtered_signals = CorrelationAnalyzer.filter_signals(valid_signals)
+            
+            # 12. V6.3: Chart Generation (Headless TradingView)
+            if filtered_signals:
+                await renderer.start()
+                for signal in filtered_signals:
+                    journal.log_signal(signal)
+                    message = telegram_service.format_signal(signal)
+                    symbol = signal['symbol']
+                    m5_df = market_data[symbol]['m5']
+                    
+                    try:
+                        chart_image = await renderer.render_chart(symbol, m5_df, signal)
+                        if chart_image:
+                            await telegram_service.send_chart(chart_image, message)
+                        else:
+                            await telegram_service.send_signal(message)
+                    except Exception as e:
+                        await telegram_service.send_signal(message)
+                await renderer.stop()
+            
+            if is_actions: 
+                print("✅ GitHub Actions Scan Complete.")
+                break
+                
+        except Exception as e:
+            if is_actions: raise e
+            await asyncio.sleep(30)
+            
+        await asyncio.sleep(60)
 
 if __name__ == "__main__":
     asyncio.run(main())
