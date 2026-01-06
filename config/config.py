@@ -57,7 +57,7 @@ NEWS_WASH_ZONE = 30 # Minutes before/after high-impact news
 NEWS_IMPACT_LEVELS = ["High", "Medium"] # Impact levels to track
 
 # SCORING
-MIN_CONFIDENCE_SCORE = 9.0
+MIN_CONFIDENCE_SCORE = 8.0
 
 # RISK MANAGEMENT V3.2 ($50 Account Optimized)
 ACCOUNT_BALANCE = 50.0 # User's target starting balance

@@ -48,7 +48,11 @@ async def test_manual_signal():
     print(message)
     
     print("\n📤 Sending to Telegram...")
-    await service.send_signal(message)
+    # Skip actual sending in GitHub Actions to avoid confusion with real signals
+    if os.getenv("GITHUB_ACTIONS") == "true":
+        print("⚠️ CI Environment detected: Skipping actual Telegram message.")
+    else:
+        await service.send_signal(message)
     print("✅ Test execution complete. Check your Telegram!")
 
 if __name__ == "__main__":
