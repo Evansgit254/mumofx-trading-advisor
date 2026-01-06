@@ -25,11 +25,11 @@ async def test_tv_render():
         'win_prob': 0.92,
         'ema_slope': 0.12,
         'adr_usage': 45,
-        'ai_logic': 'Strong displacement from Asian High with EMA alignment.',
+        'ai_logic': 'Institutional buying detected (SMC). Price has swept lower liquidity and is now reversing with momentum.',
         'entry_price': 1.0700,
         'sl': 1.0650, # 50 pips away
-        'tp1': 1.0750, # 50 pips away
-        'tp2': 1.0800  # 100 pips away
+        'tp1': 1.0800, # 100 pips away (2:1 RR)
+        'tp2': 1.0850
     }
     
     print(f"DEBUG: Entry={signal['entry_price']}, SL={signal['sl']}, TP1={signal['tp1']}, TP2={signal['tp2']}")
@@ -37,9 +37,9 @@ async def test_tv_render():
     try:
         buf = await TVChartRenderer.render_chart('EURUSD', df, signal)
         if buf:
-            with open("tv_chart_final.png", "wb") as f:
+            with open("tv_chart_beginner.png", "wb") as f:
                 f.write(buf.getvalue())
-            print("✅ TV Chart generated successfully (saved to tv_chart_final.png)")
+            print("✅ TV Chart generated successfully (saved to tv_chart_beginner.png)")
         else:
             print("❌ TV Chart generation failed (returned None)")
     except Exception as e:

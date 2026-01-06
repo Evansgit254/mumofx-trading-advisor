@@ -97,13 +97,82 @@
             background: rgba(239, 83, 80, 0.2);
             color: #ef5350;
         }
+
+        #legend {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 10;
+            background: rgba(30, 34, 45, 0.9);
+            border: 1px solid #2a2e39;
+            border-radius: 4px;
+            padding: 10px;
+            color: #d1d4dc;
+            font-size: 11px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px 15px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .line-sample {
+            width: 15px;
+            height: 2px;
+        }
+
+        .rr-badge {
+            position: absolute;
+            top: 20px;
+            right: 120px;
+            z-index: 10;
+            background: #2962ff;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            box-shadow: 0 4px 10px rgba(41, 98, 255, 0.3);
+        }
     </style>
 </head>
 
 <body>
+    <div id="rr-display" class="rr-badge">R:R 1:2.5</div>
     <div id="info-overlay">
         <!-- Content injected by JS -->
     </div>
+
+    <div id="legend">
+        <div class="legend-item">
+            <div class="line-sample" style="background: #2962ff;"></div> <span>Entry (Buy/Sell Price)</span>
+        </div>
+        <div class="legend-item">
+            <div class="line-sample" style="background: #ef5350; border-bottom: 2px dashed #ef5350; height: 0;"></div>
+            <span>Stop Loss (Safety)</span>
+        </div>
+        <div class="legend-item">
+            <div class="line-sample" style="background: #00c853; border-bottom: 2px dashed #00c853; height: 0;"></div>
+            <span>Take Profit (Target)</span>
+        </div>
+        <div class="legend-item">
+            <div class="dot" style="background: #9c27b0;"></div> <span>Trend (1H Context)</span>
+        </div>
+        <div class="legend-item">
+            <div class="dot" style="background: #2962ff;"></div> <span>Short-Term Momentum</span>
+        </div>
+    </div>
+
     <div id="chart-container"></div>
 
     <script>
@@ -116,31 +185,43 @@
             const directionClass = details.direction === 'BUY' ? 'badge-buy' : 'badge-sell';
             const directionIcon = details.direction === 'BUY' ? '🟢' : '🔴';
 
+            // Calculate Risk/Reward
+            let rrRatio = "N/A";
+            if (details.entry && details.sl && details.tp1) {
+                const risk = Math.abs(details.entry - details.sl);
+                const reward = Math.abs(details.tp1 - details.entry);
+                if (risk > 0) {
+                    rrRatio = `RR 1:${(reward / risk).toFixed(1)}`;
+                }
+            }
+            document.getElementById('rr-display').innerText = rrRatio;
+
             overlay.innerHTML = `
                 <div class="header">
                     ${chartData.symbol} 
                     <span class="badge ${directionClass}">${details.direction}</span>
                 </div>
-                <div class="sub-header">${details.timeframe} • SMC SETUP • V6.0</div>
+                <div class="sub-header">${details.timeframe} • SMART MONEY CONCEPT • V6.0</div>
                 
                 <div class="metric">
-                    <span class="metric-label">Confidence</span>
+                    <span class="metric-label" title="Confidence score based on strategy alignment">Logic Setup Score</span>
                     <span class="metric-value" style="color: ${getConfidenceColor(details.confidence)}">${details.confidence}/10</span>
                 </div>
                 <div class="metric">
-                    <span class="metric-label">Win Probability</span>
+                    <span class="metric-label" title="Historical probability of similar setups">Success Probability</span>
                     <span class="metric-value">${(details.win_prob * 100).toFixed(1)}%</span>
                 </div>
                 <div class="metric">
-                    <span class="metric-label">EMA Velocity</span>
+                    <span class="metric-label" title="Strength of the current trend">Trend Velocity</span>
                     <span class="metric-value">${details.slope.toFixed(3)}%</span>
                 </div>
                 <div class="metric">
-                    <span class="metric-label">ADR Usage</span>
+                    <span class="metric-label" title="Daily range already covered (Over 80% is risky)">Daily Fuel Used (ADR)</span>
                     <span class="metric-value">${details.adr}%</span>
                 </div>
                 
                 <div class="rationale">
+                    <b style="color: #fff">Simplified Logic:</b><br/>
                     ${details.rationale}
                 </div>
             `;
