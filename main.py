@@ -26,6 +26,7 @@ from alerts.service import TelegramService
 from ai.analyst import AIAnalyst
 from filters.correlation import CorrelationAnalyzer
 from filters.risk_manager import RiskManager
+from tools.tv_renderer import TVChartRenderer
 
 import joblib
 import os
@@ -270,20 +271,15 @@ async def main():
     if theme_header:
         await telegram_service.send_signal(theme_header)
         
-from tools.charting import ChartGenerator
-
-# ... (inside main function)
-
     for signal in filtered_signals:
         message = telegram_service.format_signal(signal)
         
-        # 12. V6.3: Chart Generation
+        # 12. V6.3: Chart Generation (Headless TradingView)
         symbol = signal['symbol']
-        # M5 data is needed for chart
         m5_df = market_data[symbol]['m5']
         
-        print(f"📸 Generating chart for {symbol}...")
-        chart_image = ChartGenerator.generate_chart(symbol, m5_df, signal)
+        print(f"📸 Rendering Pro-Chart for {symbol}...")
+        chart_image = await TVChartRenderer.render_chart(symbol, m5_df, signal)
         
         if chart_image:
             await telegram_service.send_chart(chart_image, message)

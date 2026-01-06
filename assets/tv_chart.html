@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>TradingView Chart</title>
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #131722;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+        }
+
+        #chart-container {
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        #info-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+            background: rgba(30, 34, 45, 0.95);
+            border: 1px solid #2a2e39;
+            border-radius: 4px;
+            padding: 15px;
+            color: #d1d4dc;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            min-width: 250px;
+        }
+
+        .header {
+            font-size: 16px;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sub-header {
+            font-size: 11px;
+            color: #787b86;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            font-size: 13px;
+        }
+
+        .metric-label {
+            color: #b2b5be;
+        }
+
+        .metric-value {
+            font-family: 'Roboto Mono', monospace;
+            color: #fff;
+            font-weight: 500;
+        }
+
+        .rationale {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #2a2e39;
+            font-size: 12px;
+            color: #b2b5be;
+            line-height: 1.4;
+        }
+
+        .badge {
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+
+        .badge-buy {
+            background: rgba(0, 150, 136, 0.2);
+            color: #009688;
+        }
+
+        .badge-sell {
+            background: rgba(239, 83, 80, 0.2);
+            color: #ef5350;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="info-overlay">
+        <!-- Content injected by JS -->
+    </div>
+    <div id="chart-container"></div>
+
+    <script>
+        function renderChart(chartData) {
+            const container = document.getElementById('chart-container');
+            const overlay = document.getElementById('info-overlay');
+
+            // 1. Render Overlay Content
+            const details = chartData.details;
+            const directionClass = details.direction === 'BUY' ? 'badge-buy' : 'badge-sell';
+            const directionIcon = details.direction === 'BUY' ? '🟢' : '🔴';
+
+            overlay.innerHTML = `
+                <div class="header">
+                    ${chartData.symbol} 
+                    <span class="badge ${directionClass}">${details.direction}</span>
+                </div>
+                <div class="sub-header">${details.timeframe} • SMC SETUP • V6.0</div>
+                
+                <div class="metric">
+                    <span class="metric-label">Confidence</span>
+                    <span class="metric-value" style="color: ${getConfidenceColor(details.confidence)}">${details.confidence}/10</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Win Probability</span>
+                    <span class="metric-value">${(details.win_prob * 100).toFixed(1)}%</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">EMA Velocity</span>
+                    <span class="metric-value">${details.slope.toFixed(3)}%</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">ADR Usage</span>
+                    <span class="metric-value">${details.adr}%</span>
+                </div>
+                
+                <div class="rationale">
+                    ${details.rationale}
+                </div>
+            `;
+
+            function getConfidenceColor(score) {
+                if (score >= 9) return '#00bfa5'; // High
+                if (score >= 8) return '#ffeb3b'; // Med
+                return '#ffecb3';
+            }
+
+            // 2. Initialize Chart
+            const chart = LightweightCharts.createChart(container, {
+                layout: {
+                    background: { type: 'solid', color: '#131722' },
+                    textColor: '#d1d4dc',
+                },
+                grid: {
+                    vertLines: { color: '#1f2937' },
+                    horzLines: { color: '#1f2937' },
+                },
+                rightPriceScale: {
+                    borderColor: 'rgba(197, 203, 206, 0.8)',
+                    scaleMargins: { top: 0.1, bottom: 0.1 }
+                },
+                timeScale: {
+                    borderColor: 'rgba(197, 203, 206, 0.8)',
+                    timeVisible: true,
+                    secondsVisible: false,
+                },
+                crosshair: {
+                    mode: LightweightCharts.CrosshairMode.Normal,
+                },
+            });
+
+            // 3. Add Series
+            // Candles
+            const candleSeries = chart.addSeries(LightweightCharts.CandlestickSeries, {
+                upColor: '#009688', downColor: '#ef5350',
+                borderVisible: false, wickUpColor: '#009688', wickDownColor: '#ef5350'
+            });
+            candleSeries.setData(chartData.candles);
+
+            // EMAs
+            const ema20 = chart.addSeries(LightweightCharts.LineSeries, { color: '#2962ff', lineWidth: 1, title: 'EMA 20' });
+            ema20.setData(chartData.indicators.ema20);
+
+            const ema50 = chart.addSeries(LightweightCharts.LineSeries, { color: '#ff6d00', lineWidth: 1, title: 'EMA 50' });
+            ema50.setData(chartData.indicators.ema50);
+
+            const ema100 = chart.addSeries(LightweightCharts.LineSeries, { color: '#9c27b0', lineWidth: 2, title: 'TREND' });
+            ema100.setData(chartData.indicators.ema100);
+
+            // Trade Lines (Horizontal) via Price Lines
+            // Entry
+            candleSeries.createPriceLine({
+                price: details.entry, color: '#2962ff', lineWidth: 2,
+                lineStyle: LightweightCharts.LineStyle.Solid, axisLabelVisible: true, title: 'ENTRY'
+            });
+
+            // SL
+            candleSeries.createPriceLine({
+                price: details.sl, color: '#ef5350', lineWidth: 2,
+                lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: 'SL'
+            });
+
+            // TP1
+            candleSeries.createPriceLine({
+                price: details.tp1, color: '#00c853', lineWidth: 1,
+                lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: 'TP1'
+            });
+
+            // 4. Fit Content
+            chart.timeScale().fitContent();
+        }
+    </script>
+</body>
+
+</html>
