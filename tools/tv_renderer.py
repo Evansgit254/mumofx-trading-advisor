@@ -60,9 +60,10 @@ class TVChartRenderer:
                 'slope': trade_details.get('ema_slope', 0),
                 'adr': trade_details.get('adr_usage', 0),
                 'rationale': trade_details.get('ai_logic', 'Data-driven setup.'),
-                'entry': trade_details.get('entry', 0),
+                'entry': trade_details.get('entry_price', 0),
                 'sl': trade_details.get('sl', 0),
-                'tp1': trade_details.get('tp1', 0)
+                'tp1': trade_details.get('tp1', 0),
+                'tp2': trade_details.get('tp2', 0)
             }
         }
 

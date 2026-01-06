@@ -220,6 +220,7 @@ async def process_symbol(symbol: str, data: dict, news_events: list, ai_analyst:
             'entry_tf': 'M5',
             'liquidity_event': sweep['description'],
             'entry_zone': f"{m5_df.iloc[-1]['close']:.5f} - {m5_df.iloc[-1]['close'] + (0.0001 if direction == 'BUY' else -0.0001):.5f}",
+            'entry_price': m5_df.iloc[-1]['close'],
             'sl': levels['sl'],
             'tp1': levels['tp1'],
             'tp2': levels['tp2'],

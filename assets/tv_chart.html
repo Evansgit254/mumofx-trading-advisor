@@ -212,6 +212,14 @@
                 lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: 'TP1'
             });
 
+            // TP2
+            if (details.tp2) {
+                candleSeries.createPriceLine({
+                    price: details.tp2, color: '#00e676', lineWidth: 1,
+                    lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: 'TP2'
+                });
+            }
+
             // 4. Fit Content
             chart.timeScale().fitContent();
         }

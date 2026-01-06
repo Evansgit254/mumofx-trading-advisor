@@ -26,7 +26,7 @@ async def test_tv_render():
         'ema_slope': 0.12,
         'adr_usage': 45,
         'ai_logic': 'Strong displacement from Asian High with EMA alignment.',
-        'entry': 1.0700,
+        'entry_price': 1.0700,
         'sl': 1.0690,
         'tp1': 1.0720,
         'tp2': 1.0750
