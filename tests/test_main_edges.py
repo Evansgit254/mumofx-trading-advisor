@@ -190,7 +190,10 @@ async def test_main_error_recovery_local():
     """Test error recovery in local mode (lines 330-334)"""
     with patch.dict(os.environ, {}, clear=True):  # Not GitHub Actions
         with patch("main.NewsFetcher.fetch_news", side_effect=Exception("Network error")):
-            with patch("main.TelegramService"):
+            with patch("main.TelegramService") as mock_tg_cls:
+                mock_tg = MagicMock()
+                mock_tg.test_connection = AsyncMock()
+                mock_tg_cls.return_value = mock_tg
                 with patch("main.AIAnalyst"):
                     with patch("main.TVChartRenderer"):
                         with patch("main.SignalJournal"):
@@ -210,7 +213,10 @@ async def test_main_error_raises_in_actions():
     """Test error raises in GitHub Actions mode (line 331)"""
     with patch.dict(os.environ, {"GITHUB_ACTIONS": "true"}):
         with patch("main.NewsFetcher.fetch_news", side_effect=ValueError("Test error")):
-            with patch("main.TelegramService"):
+            with patch("main.TelegramService") as mock_tg_cls:
+                mock_tg = MagicMock()
+                mock_tg.test_connection = AsyncMock()
+                mock_tg_cls.return_value = mock_tg
                 with patch("main.AIAnalyst"):
                     with patch("main.TVChartRenderer"):
                         with patch("main.SignalJournal"):

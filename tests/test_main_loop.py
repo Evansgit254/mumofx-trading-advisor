@@ -10,7 +10,10 @@ async def test_main_loop_single_shot():
     with patch.dict(os.environ, {"GITHUB_ACTIONS": "true"}):
         with patch("main.NewsFetcher.fetch_news", return_value=[]):
             with patch("main.DataFetcher.get_latest_data", return_value={}):
-                with patch("main.TelegramService") as mock_tg:
+                with patch("main.TelegramService") as mock_tg_cls:
+                    mock_tg = MagicMock()
+                    mock_tg.test_connection = AsyncMock()
+                    mock_tg_cls.return_value = mock_tg
                     with patch("main.AIAnalyst"):
                         with patch("main.TVChartRenderer"):
                             with patch("main.SignalJournal"):
@@ -36,6 +39,7 @@ async def test_main_loop_with_signal():
                     with patch("main.CorrelationAnalyzer.filter_signals", return_value=[{'symbol': 'EURUSD=X', 'confidence': 9.0}]):
                         with patch("main.TelegramService") as mock_tg_cls:
                             mock_tg = MagicMock()
+                            mock_tg.test_connection = AsyncMock()
                             mock_tg.format_signal.return_value = "Test Message"
                             mock_tg.send_chart = AsyncMock()
                             mock_tg_cls.return_value = mock_tg
