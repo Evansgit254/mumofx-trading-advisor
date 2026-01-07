@@ -121,3 +121,81 @@ class IndicatorCalculator:
         # Normalized slope in % change
         slope = ((end_val - start_val) / start_val) * 100
         return round(slope, 4)
+
+    @staticmethod
+    def get_previous_candle_range(df: pd.DataFrame) -> dict:
+        """
+        Returns the high/low of the previous closed candle.
+        """
+        if df.empty or len(df) < 2: return None
+        prev = df.iloc[-2]
+        return {
+            'high': prev['high'],
+            'low': prev['low'],
+            'close': prev['close'],
+            'time': df.index[-2]
+        }
+
+    @staticmethod
+    def get_h4_levels(h4_df: pd.DataFrame) -> dict:
+        """
+        Extracts key levels from the 4H timeframe.
+        """
+        if h4_df.empty or len(h4_df) < 2: return None
+        
+        # Last closed 4H candle
+        last_closed = h4_df.iloc[-2]
+        
+        # Also look for recent swing highs/lows on 4H (within last 10 candles)
+        recent_h4 = h4_df.tail(12).iloc[:-1] # Exclude current forming candle
+        
+        return {
+            'prev_h4_high': last_closed['high'],
+            'prev_h4_low': last_closed['low'],
+            'swing_h4_high': recent_h4['high'].max(),
+            'swing_h4_low': recent_h4['low'].min()
+        }
+
+    @staticmethod
+    def detect_crt_phases(df: pd.DataFrame) -> dict:
+        """
+        Detects Candle Range Theory (PO3) phases: 
+        Accumulation (Range), Manipulation (Sweep), Distribution (Expansion).
+        """
+        if df.empty or len(df) < 50: return None
+        
+        # 1. Detect Accumulation (Consolidation)
+        # Look back 24 bars (approx 1 day on 1H, or 2 sessions on 15M)
+        lookback = 24
+        subset = df.iloc[-(lookback+5):-5] # Range before potential manipulation
+        range_high = subset['high'].max()
+        range_low = subset['low'].min()
+        
+        # 2. Detect Manipulation (Sweep of range)
+        # Look at the last 5 bars
+        recent = df.tail(5)
+        manip_buy = (recent['low'] < range_low).any() and (recent['close'] > range_low).any()
+        manip_sell = (recent['high'] > range_high).any() and (recent['close'] < range_high).any()
+        
+        # 3. Detect Distribution (Directional expansion)
+        # Check if current direction aligns with manipulation
+        latest_close = df.iloc[-1]['close']
+        latest_open = df.iloc[-5]['open'] # expansion over last 5 bars
+        
+        is_expansion_up = latest_close > latest_open and latest_close > range_high
+        is_expansion_down = latest_close < latest_open and latest_close < range_low
+        
+        phase = "ACCUMULATION"
+        if manip_buy and is_expansion_up:
+            phase = "DISTRIBUTION_LONG"
+        elif manip_sell and is_expansion_down:
+            phase = "DISTRIBUTION_SHORT"
+        elif manip_buy or manip_sell:
+            phase = "MANIPULATION"
+            
+        return {
+            'phase': phase,
+            'range_high': range_high,
+            'range_low': range_low,
+            'manipulated': manip_buy or manip_sell
+        }

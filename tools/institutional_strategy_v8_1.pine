@@ -1,0 +1,104 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © TradingExpert
+// @version=5
+strategy("Institutional Strategy V8.1 - REAPER", overlay=true, 
+     initial_capital=1000, 
+     default_qty_type=strategy.percent_of_equity, 
+     default_qty_value=1, 
+     currency=currency.USD)
+
+// --- ⚙️ CONFIGURATION & INPUTS ---
+emaLen = input.int(100, "Trend EMA", group="Trend")
+lookback = input.int(40, "Liquidity Lookback", group="Liquidity")
+displacementThreshold = input.float(0.6, "Displacement (Body/Range)", group="Filters")
+
+atrLen = input.int(14, "ATR Period", group="Risk")
+tpMult = input.float(2.0, "TP ATR Multiplier", group="Risk")
+slMult = input.float(1.5, "SL ATR Multiplier", group="Risk")
+partialProfit = input.bool(true, "Liquid Reaper (Partial TP0 @ 0.5 ATR)", group="Risk")
+
+// --- 🧠 4H INSTITUTIONAL LEVELS ---
+h4_high = request.security(syminfo.tickerid, "240", high[1], lookahead=barmerge.lookahead_on)
+h4_low = request.security(syminfo.tickerid, "240", low[1], lookahead=barmerge.lookahead_on)
+
+// --- 🧠 CORE INDICATORS ---
+emaVal = ta.ema(close, emaLen)
+rsiVal = ta.rsi(close, 14)
+atrVal = ta.atr(atrLen)
+
+// --- ⚡ QUANTUM DISPLACEMENT ---
+body = math.abs(close - open)
+candleRange = high - low
+displacementRatio = candleRange > 0 ? body / candleRange : 0
+isDisplaced = displacementRatio >= displacementThreshold
+
+// --- 🌊 LIQUIDITY SWEEPS ---
+prevHigh = ta.highest(high[1], lookback)
+prevLow = ta.lowest(low[1], lookback)
+
+isBullSweep = low < prevLow and close > prevLow
+isBearSweep = high > prevHigh and close < prevHigh
+
+// --- 💎 A+ OPPORTUNITY DETECTION ---
+isAStarBuy = close > emaVal and isBullSweep and isDisplaced and rsiVal <= 45
+isAStarSell = close < emaVal and isBearSweep and isDisplaced and rsiVal >= 55
+
+// --- 📉 STRATEGY EXECUTION (LIQUID REAPER) ---
+var float entryPrice = na
+var float slPrice = na
+
+if isAStarBuy and strategy.position_size == 0
+    entryPrice := close
+    slPrice := close - (atrVal * slMult)
+    tp0 = close + (atrVal * 0.5)
+    tpFinal = close + (atrVal * tpMult)
+    
+    strategy.entry("Long", strategy.long, comment="A+ BUY")
+    if partialProfit
+        strategy.exit("TP0", "Long", qty_percent=50, limit=tp0, comment="REAPER TP0")
+        // Move to BE after TP0 (Simplified for Pine Strategy)
+        // strategy.exit("BE", "Long", stop=entryPrice, comment="BE ARMED", when=ta.crossover(high, tp0))
+    strategy.exit("Final", "Long", limit=tpFinal, stop=slPrice, comment="TP/SL")
+
+if isAStarSell and strategy.position_size == 0
+    entryPrice := close
+    slPrice := close + (atrVal * slMult)
+    tp0 = close - (atrVal * 0.5)
+    tpFinal = close - (atrVal * tpMult)
+    
+    strategy.entry("Short", strategy.short, comment="A+ SELL")
+    if partialProfit
+        strategy.exit("TP0", "Short", qty_percent=50, limit=tp0, comment="REAPER TP0")
+    strategy.exit("Final", "Short", limit=tpFinal, stop=slPrice, comment="TP/SL")
+
+// --- 🎨 VISUALS ---
+plot(emaVal, "Trend EMA", color.new(color.gray, 60))
+plot(h4_high, "4H High", color.new(color.red, 70), style=plot.style_stepline)
+plot(h4_low, "4H Low", color.new(color.green, 70), style=plot.style_stepline)
+
+if isAStarBuy
+    label.new(bar_index, low, "💎 BUY", style=label.style_label_up, color=color.green, textcolor=color.white)
+if isAStarSell
+    label.new(bar_index, high, "💎 SELL", style=label.style_label_down, color=color.red, textcolor=color.white)
+
+// --- 📑 DASHBOARD ---
+// Standardized V8.1 Dashboard for Strategy
+var table scoreTable = table.new(position.top_right, 2, 7, bgcolor=color.new(color.black, 10), border_color=color.silver, border_width=1)
+if barstate.islast
+    table.cell(scoreTable, 0, 0, "💠 INSTITUTIONAL STRATEGY", text_color=color.white, text_size=size.large)
+    table.cell(scoreTable, 1, 0, "V8.1 REAPER", text_color=color.yellow, text_size=size.large)
+    
+    table.cell(scoreTable, 0, 1, "Win Rate:", text_color=color.white, text_size=size.normal)
+    table.cell(scoreTable, 1, 1, str.tostring(strategy.winrate, "#.##") + "%", text_color=color.white, text_size=size.normal)
+    
+    table.cell(scoreTable, 0, 2, "Net Profit:", text_color=color.white, text_size=size.normal)
+    table.cell(scoreTable, 1, 2, str.tostring(strategy.netprofit, "#.##") + "$", text_color= strategy.netprofit > 0 ? color.green : color.red, text_size=size.normal)
+    
+    table.cell(scoreTable, 0, 3, "Displacement:", text_color=color.white, text_size=size.normal)
+    table.cell(scoreTable, 1, 3, str.tostring(displacementRatio, "#.##"), text_color=isDisplaced ? color.green : color.red, text_size=size.normal)
+    
+    table.cell(scoreTable, 0, 4, "Trend Bias:", text_color=color.white, text_size=size.normal)
+    table.cell(scoreTable, 1, 4, (close > emaVal ? "BULLISH" : "BEARISH"), text_color= (close > emaVal ? color.green : color.red), text_size=size.normal)
+    
+    table.cell(scoreTable, 0, 5, "Status:", text_color=color.white, text_size=size.normal)
+    table.cell(scoreTable, 1, 5, strategy.position_size != 0 ? "IN TRADE ⚠️" : "SCANNING 🔍", text_color=color.orange, text_size=size.normal)

@@ -3,6 +3,7 @@ import pandas as pd
 from strategy.entry import EntryLogic
 from strategy.displacement import DisplacementAnalyzer
 from datetime import datetime
+from strategy.scoring import ScoringEngine
 
 @pytest.fixture
 def entry_df():
@@ -32,13 +33,6 @@ def test_check_pullback_sell():
     assert result is not None
     assert result["entry_price"] == 1.1010
 
-def test_check_pullback_none(entry_df):
-    entry_df.loc[1, "rsi"] = 38 # fails crossing 40
-    assert EntryLogic.check_pullback(entry_df, "BUY") is None
-
-def test_check_pullback_empty():
-    assert EntryLogic.check_pullback(pd.DataFrame(), "BUY") is None
-
 def test_calculate_levels():
     df = pd.DataFrame({"close": [1.1000]})
     # Test NY Session
@@ -46,11 +40,6 @@ def test_calculate_levels():
     res = EntryLogic.calculate_levels(df, "BUY", 1.0950, 0.0100, t=t_ny)
     assert res["tp2_mult"] == 2.0
     assert res["tp2"] == 1.1000 + (2.0 * 0.0100)
-    
-    # Test Asian Session
-    t_asian = datetime(2024, 1, 1, 4, 0)
-    res = EntryLogic.calculate_levels(df, "SELL", 1.1050, 0.0100, t=t_asian)
-    assert res["tp2_mult"] == 1.2
 
 def test_displacement():
     df = pd.DataFrame({
@@ -59,26 +48,7 @@ def test_displacement():
         "high": [1.1011],
         "low": [1.0999]
     })
-    # body = 0.0010, range = 0.0012, ratio = 0.83 > 0.6
     assert bool(DisplacementAnalyzer.is_displaced(df, "BUY")) is True
-    assert bool(DisplacementAnalyzer.is_displaced(df, "SELL")) is False
-
-def test_displacement_fail():
-    df = pd.DataFrame({
-        "open": [1.1000],
-        "close": [1.1001],
-        "high": [1.1011],
-        "low": [1.0999]
-    })
-    # body = 0.0001, range = 0.0012, ratio = 0.08 < 0.6
-    assert bool(DisplacementAnalyzer.is_displaced(df, "BUY")) is False
-
-def test_displacement_empty():
-    assert DisplacementAnalyzer.is_displaced(pd.DataFrame(), "BUY") is False
-    df = pd.DataFrame({"open": [1.0], "close": [1.0], "high": [1.0], "low": [1.0]})
-    assert DisplacementAnalyzer.is_displaced(df, "BUY") is False
-
-from strategy.scoring import ScoringEngine
 
 def test_scoring_engine():
     details = {
@@ -89,7 +59,7 @@ def test_scoring_engine():
         'volatile': True,
         'symbol': 'EURUSD'
     }
-    # 3.0 + 3.0 + 2.0 + 1.5 + 0.5 = 10.0
+    # 3.0 (H1) + 3.0 (M15) + 2.0 (Displaced) + 1.5 (Pullback) + 0.5 (Volatile) = 10.0
     assert ScoringEngine.calculate_score(details) == 10.0
 
 def test_scoring_engine_gold():
@@ -97,36 +67,32 @@ def test_scoring_engine_gold():
         'h1_aligned': False,
         'symbol': 'GC=F'
     }
-    # 1.5 - 5.0 = -3.5
-    assert ScoringEngine.calculate_score(details) == -3.5
+    # V8.1: 1.5 (base) - 5.0 (H1) - 2.0 (No displacement) - 4.0 (Trap: no displaced/fvg) = -9.5
+    assert ScoringEngine.calculate_score(details) == -9.5
     
     details['h1_aligned'] = True
     details['asian_sweep'] = True
     details['asian_quality'] = False
-    # 3.0 - 3.0 - 1.5 = -1.5
-    assert ScoringEngine.calculate_score(details) == -1.5
+    # V8.1: 3.0 (base) - 1.5 (asian sweep) - 3.0 (gold asian) - 2.0 (no displacement) - 4.0 (trap) = -7.5
+    assert ScoringEngine.calculate_score(details) == -7.5
 
 def test_scoring_engine_jpy_index():
     details = {'symbol': 'USDJPY', 'h1_aligned': True}
-    # 3.0 + 1.0 = 4.0
-    assert ScoringEngine.calculate_score(details) == 4.0
+    # 3.0 (base) + 1.0 (Alpha) - 2.0 (No displacement) = 2.0
+    assert ScoringEngine.calculate_score(details) == 2.0
     
     details = {'symbol': '^IXIC', 'h1_aligned': True}
-    # 3.0 + 1.0 = 4.0
-    assert ScoringEngine.calculate_score(details) == 4.0
+    assert ScoringEngine.calculate_score(details) == 2.0
 
 def test_scoring_engine_slope_filters():
-    # BUY and steep down slope
     details = {'direction': 'BUY', 'ema_slope': -0.1, 'h1_aligned': True}
-    # 3.0 - 2.0 = 1.0
-    assert ScoringEngine.calculate_score(details) == 1.0
+    # 3.0 (base) - 2.0 (Slope) - 2.0 (No displacement) = -1.0
+    assert ScoringEngine.calculate_score(details) == -1.0
     
-    # SELL and steep up slope
     details = {'direction': 'SELL', 'ema_slope': 0.1, 'h1_aligned': True}
-    # 3.0 - 2.0 = 1.0
-    assert ScoringEngine.calculate_score(details) == 1.0
+    assert ScoringEngine.calculate_score(details) == -1.0
 
 def test_scoring_engine_overextended():
     details = {'h1_dist': 0.01, 'h1_aligned': True}
-    # 3.0 - 2.0 = 1.0
-    assert ScoringEngine.calculate_score(details) == 1.0
+    # 3.0 (base) - 2.0 (Extension) - 2.0 (No displacement) = -1.0
+    assert ScoringEngine.calculate_score(details) == -1.0

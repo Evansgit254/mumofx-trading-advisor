@@ -23,6 +23,13 @@ class ScoringEngine:
         # 3. Displacement strength
         if details.get('displaced'):
             score += 2.0
+        else:
+            # V8.1 AUDIT: 90% of losses had no displacement. Stricter momentum gate.
+            score -= 2.0
+            
+        # 3.1. 4H Level Confluence (Institutional Sweep)
+        if details.get('h4_sweep'):
+            score += 2.5 # High probability institutional alignment
             
         # 4. Pullback depth & RSI Recovery
         if details.get('pullback'):
@@ -31,6 +38,18 @@ class ScoringEngine:
         # 5. V7.0 Quantum: FVG Confluence Bonus
         if details.get('has_fvg'):
             score += 2.0 # High value institutional footprint
+            
+        # 5.1 Candle Range Theory (CRT) Bonus
+        crt_bonus = details.get('crt_bonus', 0)
+        score += crt_bonus
+        
+        # V8.1 Institutional Opposition Penalty
+        crt_phase = details.get('crt_phase', '')
+        direction = details.get('direction', '')
+        if direction == "BUY" and "SHORT" in crt_phase:
+            score -= 2.5
+        elif direction == "SELL" and "LONG" in crt_phase:
+            score -= 2.5
             
         # 5. Volatility (Quality expansion)
         if details.get('volatile'):
@@ -41,12 +60,15 @@ class ScoringEngine:
         if symbol == "GC=F":
             # Mandatory H1 alignment for Gold
             if not details.get('h1_aligned'):
-                score -= 5.0 # Instant disqualification for Gold if not aligned
+                score -= 5.0 
+            
+            # V8.1 Audit: Gold is prone to traps. Require displacement AND FVG.
+            if not details.get('displaced') or not details.get('has_fvg'):
+                score -= 4.0 # Disqualify messy Gold setups
             
             # Stricter Asian Range for Gold (20 pips instead of 15)
-            # asian_quality for Gold is 20-pips in main.py
             if details.get('asian_sweep') and not details.get('asian_quality'):
-                score -= 3.0 # Heavy penalty for messy Gold Asian ranges
+                score -= 3.0 
             
         # 6. V4.0 Ultra-Quant: Asian Sweep (Neutralized for V6)
         # Forensic Audit: Asian Sweeps are currently high-risk traps.

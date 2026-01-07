@@ -26,7 +26,7 @@ def mock_data():
         'atr': [0.01] * 100,
         'atr_avg': [0.01] * 100,
     }, index=[timestamp - pd.Timedelta(minutes=5*i) for i in range(100)][::-1])
-    return {'m5': df.copy(), 'm15': df.copy(), 'h1': df.copy()}
+    return {'m5': df.copy(), 'm15': df.copy(), 'h1': df.copy(), 'h4': df.copy()}
 
 # ========== process_symbol Tests ==========
 

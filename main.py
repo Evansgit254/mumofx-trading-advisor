@@ -18,6 +18,7 @@ from strategy.displacement import DisplacementAnalyzer
 from strategy.entry import EntryLogic
 from strategy.scoring import ScoringEngine
 from strategy.imbalance import ImbalanceDetector
+from strategy.crt import CRTAnalyzer
 from filters.session_filter import SessionFilter
 from filters.volatility_filter import VolatilityFilter
 from filters.news_filter import NewsFilter
@@ -41,6 +42,7 @@ async def process_symbol(symbol: str, data: dict, news_events: list, ai_analyst:
     h1_df = data['h1']
     m15_df = data['m15']
     m5_df = data['m5']
+    h4_df = data['h4']
 
     # 1. Add Indicators to all timeframes
     h1_df = IndicatorCalculator.add_indicators(h1_df, "h1")
@@ -63,7 +65,8 @@ async def process_symbol(symbol: str, data: dict, news_events: list, ai_analyst:
     
     # 2. Structure (15M) - Sweep detection
     m15_df = data['m15']
-    if len(m15_df) < lookback + 1: return None
+    if len(m15_df) < lookback + 1: 
+        return None
     
     # Calculate previous high/low within adaptive window
     prev_high = m15_df['high'].iloc[-(lookback+1):-1].max()
@@ -90,6 +93,17 @@ async def process_symbol(symbol: str, data: dict, news_events: list, ai_analyst:
     if not direction:
         return None
 
+    # --- V8.0 INTEGRATION: 4H Level Alignment & CRT ---
+    h4_levels = IndicatorCalculator.get_h4_levels(h4_df)
+    h4_sweep = False
+    if h4_levels:
+        if direction == "BUY" and latest_low < h4_levels['prev_h4_low'] and latest_close > h4_levels['prev_h4_low']:
+            h4_sweep = True
+        elif direction == "SELL" and latest_high > h4_levels['prev_h4_high'] and latest_close < h4_levels['prev_h4_high']:
+            h4_sweep = True
+            
+    crt_validation = CRTAnalyzer.validate_setup(m15_df, direction)
+
     # --- V7.0 OPTIMIZATION: FVG Confluence ---
     m5_df = data['m5']
     fvgs = ImbalanceDetector.detect_fvg(m5_df)
@@ -100,10 +114,6 @@ async def process_symbol(symbol: str, data: dict, news_events: list, ai_analyst:
         m15_fvgs = ImbalanceDetector.detect_fvg(m15_df)
         has_fvg = ImbalanceDetector.is_price_in_fvg(latest_close, m15_fvgs, direction)
     
-    if not has_fvg:
-        # Optimization: We don't block yet, but we will pass it to the ScoringEngine
-        pass
-
     # 4. Displacement Confirmation (on Entry TF)
     displaced = DisplacementAnalyzer.is_displaced(m5_df, direction)
     
@@ -117,7 +127,6 @@ async def process_symbol(symbol: str, data: dict, news_events: list, ai_analyst:
     is_news_safe = NewsFilter.is_news_safe(news_events, symbol)
     
     if not is_news_safe:
-        print(f"Skipping {symbol} due to news.")
         return None
 
     # 7. V4.0 Ultra-Quant Analysis
@@ -176,6 +185,9 @@ async def process_symbol(symbol: str, data: dict, news_events: list, ai_analyst:
         'ema_slope': ema_slope,
         'h1_dist': h1_dist,
         'has_fvg': has_fvg,
+        'h4_sweep': h4_sweep,
+        'crt_bonus': crt_validation.get('score_bonus', 0),
+        'crt_phase': crt_validation.get('phase', ''),
         'symbol': symbol,
         'direction': direction
     }
@@ -225,7 +237,7 @@ async def process_symbol(symbol: str, data: dict, news_events: list, ai_analyst:
         dxy_df = data_batch['DXY']
         # V6.1: Simple DXY trend check
         dxy_close = dxy_df.iloc[-1]['close']
-        dxy_ema = dxy_df.iloc[-1]['ema_100']
+        dxy_ema = dxy_df.iloc[-1].get('ema_100', 0)
         dxy_trend = "BULLISH" if dxy_close > dxy_ema else "BEARISH"
         dxy_bias = "BULLISH" if dxy_trend == "BULLISH" else "BEARISH"
         
@@ -247,7 +259,7 @@ async def process_symbol(symbol: str, data: dict, news_events: list, ai_analyst:
         
         levels = EntryLogic.calculate_levels(m5_df, direction, sweep_level, atr, symbol=symbol, opt_mult=opt_mult)
         risk_details = RiskManager.calculate_lot_size(symbol, m5_df.iloc[-1]['close'], levels['sl'])
-        layers = RiskManager.calculate_layers(m5_df.iloc[-1]['close'], levels['sl'], direction, setup_quality)
+        layers = RiskManager.calculate_layers(risk_details['lots'], m5_df.iloc[-1]['close'], levels['sl'], direction, setup_quality)
         
         # News Warning
         news_warning = ""
@@ -258,7 +270,7 @@ async def process_symbol(symbol: str, data: dict, news_events: list, ai_analyst:
         return {
             'symbol': symbol,
             'direction': direction,
-            'setup_quality': "A+" if confidence >= 9.0 else "A" if confidence >= 8.5 else "B",
+            'setup_quality': setup_quality,
             'entry_tf': "M5",
             'liquidity_event': f"{sweep_type} at {sweep_level:.5f}",
             'entry_zone': f"{m5_df.iloc[-1]['close']:.5f}",
@@ -282,7 +294,9 @@ async def process_symbol(symbol: str, data: dict, news_events: list, ai_analyst:
             'adr_usage': round((current_range / adr * 100), 1) if adr > 0 else 0,
             'at_value': at_value,
             'poc': poc,
-            'ema_slope': ema_slope
+            'ema_slope': ema_slope,
+            'crt_phase': crt_validation.get('phase', 'ACC'),
+            'h4_sweep': h4_sweep
         }
     
     return None

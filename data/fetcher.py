@@ -1,7 +1,7 @@
 import yfinance as yf
 import pandas as pd
 from typing import Dict, Optional
-from config.config import SYMBOLS, NARRATIVE_TF, STRUCTURE_TF, ENTRY_TF
+from config.config import SYMBOLS, NARRATIVE_TF, STRUCTURE_TF, ENTRY_TF, INSTITUTIONAL_TF
 from indicators.calculations import IndicatorCalculator
 
 class DataFetcher:
@@ -122,6 +122,9 @@ class DataFetcher:
             # Entry (5M)
             tasks.append(DataFetcher.fetch_data_async(symbol, ENTRY_TF, period="5d"))
             task_info.append((symbol, 'm5'))
+            # Institutional (4H)
+            tasks.append(DataFetcher.fetch_data_async(symbol, INSTITUTIONAL_TF, period="3mo"))
+            task_info.append((symbol, 'h4'))
 
         # 2. Execute Tasks Concurrently
         fetched_dfs = await asyncio.gather(*tasks)
@@ -146,7 +149,7 @@ class DataFetcher:
             
         for symbol in symbols:
             s_data = results.get(symbol, {})
-            if 'h1' in s_data and 'm15' in s_data and 'm5' in s_data:
+            if 'h1' in s_data and 'm15' in s_data and 'm5' in s_data and 'h4' in s_data:
                 final_results[symbol] = s_data
                 
         return final_results

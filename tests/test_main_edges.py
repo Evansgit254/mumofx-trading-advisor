@@ -277,7 +277,8 @@ def create_mock_data():
     data = {
         'h1': mock_df.copy().set_index(h1_dates),
         'm15': mock_df.copy().set_index(dates),
-        'm5': mock_df.copy().set_index(m5_dates)
+        'm5': mock_df.copy().set_index(m5_dates),
+        'h4': mock_df.copy().set_index(h1_dates) # Rough proxy for h4
     }
     
     # Ensure baseline highs/lows for sweep

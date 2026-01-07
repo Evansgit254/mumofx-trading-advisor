@@ -57,7 +57,7 @@ async def test_integration_full_trading_cycle():
     h1_df.iloc[-1, h1_df.columns.get_loc('low')] = 1.0300
     
     market_data = {
-        'EURUSD=X': {'m5': m5_df, 'm15': m15_df, 'h1': h1_df},
+        'EURUSD=X': {'m5': m5_df, 'm15': m15_df, 'h1': h1_df, 'h4': h1_df.copy()},
         'DXY': pd.DataFrame({
             'close': [99.5],  # Lower than EMA = BEARISH (good for BUY Gold)
             'ema_100': [100.0]
@@ -76,7 +76,7 @@ async def test_integration_full_trading_cycle():
     gold_h1.iloc[-1, gold_h1.columns.get_loc('close')] = 2015.00
     gold_h1.iloc[-1, gold_h1.columns.get_loc('ema_100')] = 2000.00
     
-    market_data['GC=F'] = {'m5': gold_m5, 'm15': gold_m15, 'h1': gold_h1}
+    market_data['GC=F'] = {'m5': gold_m5, 'm15': gold_m15, 'h1': gold_h1, 'h4': gold_h1.copy()}
     
     # Mock dependencies
     with patch("main.os.getenv", side_effect=lambda k, d=None: "true" if k == "GITHUB_ACTIONS" else d):
@@ -133,7 +133,7 @@ async def test_integration_local_mode_deduplication():
         'rsi': [50]*100, 'atr': [0.01]*100, 'atr_avg': [0.01]*100
     }, index=dates)
     
-    market_data = {'EURUSD=X': {'m5': m5_df.copy(), 'm15': m5_df.copy(), 'h1': m5_df.copy()}}
+    market_data = {'EURUSD=X': {'m5': m5_df.copy(), 'm15': m5_df.copy(), 'h1': m5_df.copy(), 'h4': m5_df.copy()}}
     
     call_count = 0
     
@@ -195,7 +195,7 @@ async def test_integration_news_rejection():
     }, index=dates)
     
     market_data = {
-        'EURUSD=X': {'m5': df.copy(), 'm15': df.copy(), 'h1': df.copy()}
+        'EURUSD=X': {'m5': df.copy(), 'm15': df.copy(), 'h1': df.copy(), 'h4': df.copy()}
     }
     
     high_impact_news = [{

@@ -22,7 +22,8 @@ async def test_process_symbol():
     data = {
         'h1': mock_df.copy().set_index(h1_dates),
         'm15': mock_df.copy().set_index(dates),
-        'm5': mock_df.copy().set_index(m5_dates)
+        'm5': mock_df.copy().set_index(m5_dates),
+        'h4': mock_df.copy().set_index(h1_dates) # Rough proxy for h4
     }
     
     # Ensure all lows are high enough so a 1.10 sweep works

@@ -116,6 +116,8 @@ _Total Vol: {sum(l['lots'] for l in data['layers']):.2f}_
 • Session Sniper: {"✅ ASIAN SWEEP" if data.get('asian_sweep') else "Standard Liquidity"} {"(High Quality)" if data.get('asian_quality') else "(Low Range)"}
 • Volume Sniper: {"⚠️ UNSAFE VALUE ZONE" if data.get('at_value') else "✅ EXTREME VALUE (INSTITUTIONAL)"} (POC: {data.get('poc', 0):.5f})
 • Momentum Sniper: {"✅ IDEAL VELOCITY" if abs(data.get('ema_slope', 0)) < 0.05 else "⚠️ STEEP TREND (RISKY)"} (Slope: {data.get('ema_slope', 0):.4f}%)
+• CRT Phase: {data.get('crt_phase', 'ACC')} {"📈 Expansion" if "DISTRIBUTION" in data.get('crt_phase', '') else "🔄 Range"}
+• 4H Institution: {"✅ 4H SWEEP DETECTED" if data.get('h4_sweep') else "Standard Intraday"}
 • ADR Usage: {data.get('adr_usage')}% {"⚠️ EXHAUSTED" if data.get('adr_exhausted') else "✅ HEALTHY"}
 
 {data.get('news_warning', '')}

@@ -7,9 +7,13 @@ load_dotenv()
 SYMBOLS = ["EURUSD=X", "GBPUSD=X", "USDCAD=X", "NZDUSD=X", "GC=F", "CL=F", "^IXIC"]
 DXY_SYMBOL = "DX-Y.NYB"
 NARRATIVE_TF = "1h"
+INSTITUTIONAL_TF = "4h"
 STRUCTURE_TF = "15m"
 ENTRY_TF = "5m" # Switched to 5m for better intraday consistency
 SCALP_TF = "1m"
+
+# CRT settings
+CRT_LOOKBACK = 24
 
 # INDICATORS
 EMA_TREND = 100 # Optimized from 200

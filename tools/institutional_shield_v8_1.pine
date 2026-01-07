@@ -1,0 +1,108 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © TradingExpert
+// @version=5
+indicator("Institutional Shield V8.1 - PRO SNIPER", overlay=true, max_boxes_count=100, max_labels_count=100)
+
+// --- ⚙️ CONFIGURATION & INPUTS ---
+emaLen = input.int(100, "Trend Alignment EMA", minval=1, group="Trend")
+rsiLen = input.int(14, "Institutional RSI", group="Oscillators")
+lookback = input.int(40, "Liquidity Sweep Lookback", minval=5, group="Liquidity")
+
+displacementThreshold = input.float(0.6, "V8.1 Displacement Filter (Body/Range)", minval=0.1, maxval=1.0, group="V8.1 Filters")
+useStrictRSI = input.bool(true, "Use Strict RSI Filters (25-40/60-75)", group="V8.1 Filters")
+
+showCRT = input.bool(true, "Show CRT (PO3) Phases", group="Visuals")
+show4H = input.bool(true, "Show 4H Institutional Levels", group="Visuals")
+showLabels = input.bool(true, "Show 💎 Signal Labels", group="Visuals")
+showShapes = input.bool(true, "Show ⬆️ signal Arrows", group="Visuals")
+
+// --- 🧠 4H INSTITUTIONAL LEVELS ---
+h4_high = request.security(syminfo.tickerid, "240", high[1], lookahead=barmerge.lookahead_on)
+h4_low = request.security(syminfo.tickerid, "240", low[1], lookahead=barmerge.lookahead_on)
+
+plot(show4H ? h4_high : na, "4H Prev High", color.new(color.red, 40), 1, plot.style_linebr)
+plot(show4H ? h4_low : na, "4H Prev Low", color.new(color.green, 40), 1, plot.style_linebr)
+
+// --- 🧠 CORE INDICATORS ---
+emaVal = ta.ema(close, emaLen)
+rsiVal = ta.rsi(close, rsiLen)
+plot(emaVal, "Trend EMA", color.new(color.gray, 60), 2)
+
+// --- ⚡ QUANTUM DISPLACEMENT ---
+body = math.abs(close - open)
+candleRange = high - low
+displacementRatio = candleRange > 0 ? body / candleRange : 0
+isDisplaced = displacementRatio >= displacementThreshold
+
+// --- 🌊 LIQUIDITY SWEEPS ---
+prevHigh = ta.highest(high[1], lookback)
+prevLow = ta.lowest(low[1], lookback)
+
+isBullSweep = low < prevLow and close > prevLow
+isBearSweep = high > prevHigh and close < prevHigh
+
+// 4H Confluence
+is4HSweepBuy = isBullSweep and low < h4_low and close > h4_low
+is4HSweepSell = isBearSweep and high > h4_high and close < h4_high
+
+// --- 🕒 CRT (CANDLE RANGE THEORY / PO3) ---
+isAccumulation = ta.range(close, 20) < ta.atr(14) * 1.5
+isManipulation = (isBullSweep or isBearSweep) and not isAccumulation
+crtPhase = isAccumulation ? "ACCUMULATION" : isManipulation ? "MANIPULATION" : "DISTRIBUTION"
+
+// --- 💎 INSTITUTIONAL SIGNALS (V8.1) ---
+trendBull = close > emaVal
+trendBear = close < emaVal
+
+rsiValidBuy = useStrictRSI ? (rsiVal >= 25 and rsiVal <= 40) : (rsiVal <= 50)
+rsiValidSell = useStrictRSI ? (rsiVal >= 60 and rsiVal <= 75) : (rsiVal >= 50)
+
+isAStarBuy = trendBull and isBullSweep and isDisplaced and rsiValidBuy
+isAStarSell = trendBear and isBearSweep and isDisplaced and rsiValidSell
+
+// --- 🎨 VISUALS (Labels + Shapes) ---
+if isAStarBuy and showLabels
+    label.new(bar_index, low, "💎 INSTITUTIONAL BUY\n(V8.1)", style=label.style_label_up, color=color.new(color.green, 0), textcolor=color.white, size=size.large)
+    if is4HSweepBuy
+        label.new(bar_index, low, "🌊 4H SWEEP", style=label.style_label_up, color=color.new(color.blue, 20), textcolor=color.white, size=size.small, yloc=yloc.belowbar)
+
+if isAStarSell and showLabels
+    label.new(bar_index, high, "💎 INSTITUTIONAL SELL\n(V8.1)", style=label.style_label_down, color=color.new(color.red, 0), textcolor=color.white, size=size.large)
+    if is4HSweepSell
+        label.new(bar_index, high, "🌊 4H SWEEP", style=label.style_label_down, color=color.red, textcolor=color.white, size=size.small, yloc=yloc.abovebar)
+
+// Traditional Signal Arrows (Easier for many users)
+plotshape(showShapes and isAStarBuy, title="Buy arrow", style=shape.triangleup, location=location.belowbar, color=color.green, size=size.small)
+plotshape(showShapes and isAStarSell, title="Sell arrow", style=shape.triangledown, location=location.abovebar, color=color.red, size=size.small)
+
+// CRT Phase Coloring
+bgcolor(showCRT ? (isAccumulation ? color.new(color.gray, 95) : isManipulation ? color.new(color.orange, 95) : na) : na)
+
+// --- 🔔 ALERTS ---
+alertcondition(isAStarBuy, "💎 BUY Signal", "V8.1 Institutional BUY Detected!")
+alertcondition(isAStarSell, "💎 SELL Signal", "V8.1 Institutional SELL Detected!")
+alertcondition(is4HSweepBuy or is4HSweepSell, "🌊 4H Institutional Sweep", "Price has swept a major 4H level.")
+
+// --- 📑 DASHBOARD ---
+var table scoreTable = table.new(position.top_right, 2, 7, bgcolor=color.new(color.black, 10), border_color=color.silver, border_width=1)
+if barstate.islast
+    table.cell(scoreTable, 0, 0, "💠 INSTITUTIONAL V8.1", text_color=color.white, text_size=size.large)
+    table.cell(scoreTable, 1, 0, "PRO SNIPER", text_color=color.yellow, text_size=size.large)
+    
+    table.cell(scoreTable, 0, 1, "CRT Phase:", text_color=color.white, text_size=size.normal)
+    table.cell(scoreTable, 1, 1, crtPhase, text_color=color.yellow, text_size=size.normal)
+    
+    table.cell(scoreTable, 0, 2, "Displacement:", text_color=color.white, text_size=size.normal)
+    table.cell(scoreTable, 1, 2, str.tostring(displacementRatio, "#.##"), text_color=isDisplaced ? color.green : color.red, text_size=size.normal)
+    
+    table.cell(scoreTable, 0, 3, "SMC Sweep:", text_color=color.white, text_size=size.normal)
+    table.cell(scoreTable, 1, 3, (isBullSweep or isBearSweep ? "DETECTED ✅" : "NONE ❌"), text_color= (isBullSweep or isBearSweep ? color.green : color.silver), text_size=size.normal)
+    
+    table.cell(scoreTable, 0, 4, "Trend Bias:", text_color=color.white, text_size=size.normal)
+    table.cell(scoreTable, 1, 4, (trendBull ? "BULLISH" : "BEARISH"), text_color= (trendBull ? color.green : color.red), text_size=size.normal)
+    
+    table.cell(scoreTable, 0, 5, "4H Level:", text_color=color.white, text_size=size.normal)
+    table.cell(scoreTable, 1, 5, (is4HSweepBuy or is4HSweepSell ? "YES ✅" : "NO"), text_color=color.aqua, text_size=size.normal)
+    
+    table.cell(scoreTable, 0, 6, "RSI Context:", text_color=color.white, text_size=size.normal)
+    table.cell(scoreTable, 1, 6, str.tostring(rsiVal, "#.##"), text_color=color.white, text_size=size.normal)
