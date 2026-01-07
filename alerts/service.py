@@ -12,14 +12,33 @@ class TelegramService:
         Sends a signal message to Telegram.
         """
         if not self.bot or not self.chat_id:
-            print("Telegram credentials missing. Signal:")
-            print(message)
+            print("[ALERTS] Telegram credentials missing. Check your .env or GitHub Secrets.")
             return
 
         try:
             await self.bot.send_message(chat_id=self.chat_id, text=message, parse_mode='Markdown')
         except Exception as e:
-            print(f"Error sending Telegram message: {e}")
+            print(f"[ALERTS] Error sending Telegram message: {e}")
+
+    async def test_connection(self):
+        """
+        Sends a heartbeat message to verify the bot is alive and credentials are correct.
+        """
+        if not self.bot or not self.chat_id:
+            print("[ALERTS] Connection Test Failed: Credentials missing.")
+            return False
+            
+        try:
+            await self.bot.send_message(
+                chat_id=self.chat_id, 
+                text="🔔 *SMC BOT HEARTBEAT*: Connection Successful. Scan starting...", 
+                parse_mode='Markdown'
+            )
+            print("[ALERTS] Connection Test: SUCCESS")
+            return True
+        except Exception as e:
+            print(f"[ALERTS] Connection Test Failed: {e}")
+            return False
     async def send_chart(self, photo, caption: str):
         """
         Sends a chart image with caption.

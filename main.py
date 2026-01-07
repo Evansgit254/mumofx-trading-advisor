@@ -270,8 +270,23 @@ async def main():
     
     while True:
         try:
-            now = datetime.now().strftime("%H:%M:%S")
-            print(f"🕒 [{now}] Scanning market for Institutional Setups...")
+            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            print(f"🕒 [{now}] --- STARTING SCAN ---")
+            
+            # 1. Startup Diagnostic (only on first iteration of a run)
+            if 'scan_count' not in locals():
+                scan_count = 0
+                print(f"[DIAGNOSTIC] Environment: {'GitHub Actions' if is_actions else 'Local'}")
+                print(f"[DIAGNOSTIC] Telegram Token: {'DETECTED' if os.getenv('TELEGRAM_BOT_TOKEN') else 'MISSING'}")
+                print(f"[DIAGNOSTIC] Telegram Chat ID: {'DETECTED' if os.getenv('TELEGRAM_CHAT_ID') else 'MISSING'}")
+                print(f"[DIAGNOSTIC] AI Key: {'DETECTED' if os.getenv('GEMINI_API_KEY') else 'MISSING'}")
+                
+                # Optional Startup Heartbeat
+                if is_actions or os.getenv("SEND_HEARTBEAT") == "true":
+                    await telegram_service.test_connection()
+
+            scan_count += 1
+            print(f"🕒 [{now}] Scanning {len(SYMBOLS)} symbols for Institutional Setups...")
             
             # 1. Fetch News
             news_events = NewsFetcher.fetch_news()
