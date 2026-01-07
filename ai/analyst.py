@@ -1,20 +1,20 @@
-import google.generativeai as genai
+from google import genai
 import json
 from config.config import GEMINI_API_KEY
 
 class AIAnalyst:
     def __init__(self):
         if GEMINI_API_KEY:
-            genai.configure(api_key=GEMINI_API_KEY)
-            self.model = genai.GenerativeModel('gemini-flash-latest')
+            self.client = genai.Client(api_key=GEMINI_API_KEY)
+            self.model_id = 'gemini-2.0-flash' # Upgrading to the latest standard
         else:
-            self.model = None
+            self.client = None
 
     async def validate_signal(self, data: dict) -> dict:
         """
         Passes signal data to Gemini for institutional validation.
         """
-        if not self.model:
+        if not self.client:
             return {"valid": True, "reason": "AI Validation skipped (No API Key)."}
 
         prompt = f"""
@@ -36,7 +36,10 @@ class AIAnalyst:
         """
         
         try:
-            response = self.model.generate_content(prompt)
+            response = self.client.models.generate_content(
+                model=self.model_id,
+                contents=prompt
+            )
             # Basic parsing of JSON from AI response
             raw_text = response.text.strip()
             if "```json" in raw_text:
@@ -52,7 +55,7 @@ class AIAnalyst:
         """
         Synthesizes news events into a single sentiment narrative.
         """
-        if not self.model or not news_events:
+        if not self.client or not news_events:
             return "Neutral / Data-driven execution."
 
         prompt = f"""
@@ -70,7 +73,10 @@ class AIAnalyst:
         """
         
         try:
-            response = self.model.generate_content(prompt)
+            response = self.client.models.generate_content(
+                model=self.model_id,
+                contents=prompt
+            )
             return response.text.strip()
         except:
             return "Market awaiting fundamental clarity."

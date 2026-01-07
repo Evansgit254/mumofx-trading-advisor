@@ -1,4 +1,7 @@
 from config.config import ACCOUNT_BALANCE, RISK_PER_TRADE_PERCENT, MIN_LOT_SIZE
+import pandas as pd
+import sqlite3
+import os
 
 class RiskManager:
     # Approximate pip values for 0.01 lot (1,000 units)
@@ -16,21 +19,50 @@ class RiskManager:
     }
 
     @staticmethod
-    def calculate_lot_size(symbol: str, entry: float, sl: float) -> dict:
+    def calculate_lot_size(symbol: str, entry: float, sl: float, db_path="database/signals.db") -> dict:
         """
-        Calculates the recommended lot size for a $50 account.
+        Calculates the recommended lot size with V7.0 Dynamic Scaling.
+        Adjusts risk based on recent performance streaks.
         """
-        risk_amount = ACCOUNT_BALANCE * (RISK_PER_TRADE_PERCENT / 100)
+        import sqlite3
+        import os
         
-        # Calculate SL distance in "pips" (simplified)
-        # For FX, 0.0001 is 1 pip
+        base_risk_pct = RISK_PER_TRADE_PERCENT
+        multiplier = 1.0
+        
+        # V7.0 Performance-Based Scaling
+        if os.path.exists(db_path):
+            try:
+                conn = sqlite3.connect(db_path)
+                # Get last 5 resolved trades
+                query = "SELECT status FROM signals WHERE status IN ('WIN', 'LOSS', 'BREAKEVEN') ORDER BY timestamp DESC LIMIT 5"
+                recent_trades = pd.read_sql_query(query, conn)['status'].tolist()
+                conn.close()
+                
+                if recent_trades:
+                    # Streak Logic
+                    win_streak = 0
+                    loss_streak = 0
+                    for status in recent_trades:
+                        if status == 'WIN': win_streak += 1
+                        elif status == 'LOSS': loss_streak += 1
+                        else: break # Break on breakeven
+                    
+                    if win_streak >= 3: multiplier = 1.25 # Reward 3+ wins
+                    elif loss_streak >= 2: multiplier = 0.75 # Protect after 2 losses
+            except:
+                pass
+
+        risk_amount = ACCOUNT_BALANCE * (base_risk_pct / 100) * multiplier
+        
+        # Calculate SL distance in "pips"
         sl_distance = abs(entry - sl)
         
         # Normalization for different asset types
         if "JPY" in symbol:
             pips = sl_distance * 100
         elif "GC" in symbol or "GSPC" in symbol or "IXIC" in symbol:
-            pips = sl_distance # Using points for indices/gold
+            pips = sl_distance 
         else:
             pips = sl_distance * 10000
 
@@ -61,14 +93,22 @@ class RiskManager:
         }
 
     @staticmethod
-    def calculate_layers(total_lots: float, entry: float, sl: float, direction: str) -> list:
+    def calculate_layers(total_lots: float, entry: float, sl: float, direction: str, quality: str = "B") -> list:
         """
-        Splits total lot size into 3 strategic layers (V9.0 Liquid Layering).
+        Splits total lot size into strategic layers based on setup quality.
         """
-        # Distribute: 40% (Market), 40% (Retest), 20% (Defensive)
-        l1_lots = max(MIN_LOT_SIZE, round(total_lots * 0.4, 2))
-        l2_lots = max(MIN_LOT_SIZE, round(total_lots * 0.4, 2))
-        l3_lots = max(MIN_LOT_SIZE, round(total_lots * 0.2, 2))
+        if quality == "A+":
+            # A+ setups use aggressive "Load the Boat" layering
+            # 50% Market, 30% Retest, 20% Extreme Retest
+            l1_lots = max(MIN_LOT_SIZE, round(total_lots * 0.5, 2))
+            l2_lots = max(MIN_LOT_SIZE, round(total_lots * 0.3, 2))
+            l3_lots = max(MIN_LOT_SIZE, round(total_lots * 0.2, 2))
+        else:
+            # Standard setups use balanced layering
+            # 40% (Market), 40% (Retest), 20% (Defensive)
+            l1_lots = max(MIN_LOT_SIZE, round(total_lots * 0.4, 2))
+            l2_lots = max(MIN_LOT_SIZE, round(total_lots * 0.4, 2))
+            l3_lots = max(MIN_LOT_SIZE, round(total_lots * 0.2, 2))
         
         # Calculate Price Levels for Layers
         dist = abs(entry - sl)
@@ -82,7 +122,7 @@ class RiskManager:
             l3_price = entry + (dist * 0.6)
             
         return [
-            {'label': 'Aggressive Layer (40%)', 'price': l1_price, 'lots': l1_lots},
-            {'label': 'Optimal Retest (40%)', 'price': l2_price, 'lots': l2_lots},
+            {'label': f'Aggressive Layer ({"50%" if quality=="A+" else "40%"})', 'price': l1_price, 'lots': l1_lots},
+            {'label': f'Optimal Retest ({"30%" if quality=="A+" else "40%"})', 'price': l2_price, 'lots': l2_lots},
             {'label': 'Safety Layer (20%)', 'price': l3_price, 'lots': l3_lots}
         ]

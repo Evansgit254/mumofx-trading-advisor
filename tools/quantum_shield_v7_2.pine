@@ -1,0 +1,106 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © TradingExpert
+// @version=5
+indicator("Quantum Shield V7.2 - CLEAN SNIPER", overlay=true, max_boxes_count=100, max_labels_count=100)
+
+// --- ⚙️ CONFIGURATION & INPUTS ---
+emaLen = input.int(100, "Main Trend EMA", minval=1, group="Trend")
+rsiLen = input.int(14, "RSI Period", group="Oscillators")
+rsiBuyLow = input.int(25, "RSI Buy Low", group="Oscillators")
+rsiBuyHigh = input.int(40, "RSI Buy High", group="Oscillators")
+rsiSellLow = input.int(60, "RSI Sell Low", group="Oscillators")
+rsiSellHigh = input.int(75, "RSI Sell High", group="Oscillators")
+
+asianSession = input.session("0000-0800", "Asian Session Time (UTC)", group="Sessions")
+sweepLookback = input.int(50, "Sweep Lookback", minval=5, group="Liquidity")
+showAsianRange = input.bool(true, "Highlight Asian Range", group="Sessions")
+
+// --- 🎯 CLUTTER REDUCTION ---
+showOnlyAPlus = input.bool(false, "Show ONLY A+ Setups (Cleaner View)", group="Visuals")
+signalCooldown = input.int(5, "Signal Cooldown (Bars)", minval=1, group="Visuals")
+
+bullishColor = input.color(color.new(color.green, 85), "Bullish FVG Color", group="Visuals")
+bearishColor = input.color(color.new(color.red, 85), "Bearish FVG Color", group="Visuals")
+asianColor = input.color(color.new(color.blue, 90), "Asian Session Color", group="Visuals")
+
+// --- 🧠 CORE CALCULATIONS ---
+emaVal = ta.ema(close, emaLen)
+rsiVal = ta.rsi(close, rsiLen)
+plot(emaVal, "Trend EMA", color.new(color.gray, 60), 2)
+
+// --- 📊 SESSION HIGHLIGHTER (ASIAN RANGE) ---
+inAsianSession = not na(time(timeframe.period, asianSession + ":1234567", "UTC"))
+var float asianHigh = na
+var float asianLow = na
+
+if inAsianSession
+    if not inAsianSession[1]
+        asianHigh := high
+        asianLow := low
+    else
+        asianHigh := math.max(high, asianHigh)
+        asianLow := math.min(low, asianLow)
+else
+    if inAsianSession[1] and showAsianRange
+        box.new(bar_index[1] - (bar_index - ta.valuewhen(inAsianSession and not inAsianSession[1], bar_index, 0)), asianHigh, bar_index[1], asianLow, bgcolor=asianColor, border_color=color.new(color.blue, 50))
+
+// --- 🌊 LIQUIDITY SWEEPS ---
+prevHigh = ta.highest(high[1], sweepLookback)
+prevLow = ta.lowest(low[1], sweepLookback)
+
+isBullSweep = low < prevLow and close > prevLow
+isBearSweep = high > prevHigh and close < prevHigh
+
+// --- ⚡ IMBALANCES (FVG) ---
+isBullishFVG = low > high[2] and close[1] > high[2]
+isBearishFVG = high < low[2] and close[1] < low[2]
+
+if isBullishFVG
+    box.new(bar_index-2, high[2], bar_index, low, bgcolor=bullishColor, border_color=color.new(color.green, 50), border_style=line.style_dotted)
+if isBearishFVG
+    box.new(bar_index-2, low[2], bar_index, high, bgcolor=bearishColor, border_color=color.new(color.red, 50), border_style=line.style_dotted)
+
+// --- 💎 A+ OPPORTUNITY DETECTION ---
+trendBias = close > emaVal ? "BULLISH" : "BEARISH"
+rsiValidBuy = rsiVal >= rsiBuyLow and rsiVal <= rsiBuyHigh
+rsiValidSell = rsiVal >= rsiSellLow and rsiVal <= rsiSellHigh
+
+isAPlusBuy = trendBias == "BULLISH" and isBullSweep and rsiValidBuy
+isAPlusSell = trendBias == "BEARISH" and isBearSweep and rsiValidSell
+
+// --- 🚫 SIGNAL DEBOUNCING (Prevents Stacking) ---
+var int lastSignalBar = 0
+canShowSignal = (bar_index - lastSignalBar) > signalCooldown
+
+if canShowSignal
+    if isAPlusBuy
+        label.new(bar_index, low, "💎 A+ BUY", style=label.style_label_up, color=color.yellow, textcolor=color.black, size=size.large)
+        lastSignalBar := bar_index
+    else if isAPlusSell
+        label.new(bar_index, high, "💎 A+ SELL", style=label.style_label_down, color=color.yellow, textcolor=color.black, size=size.large)
+        lastSignalBar := bar_index
+    else if not showOnlyAPlus
+        if isBullSweep
+            label.new(bar_index, low, "🔥 BUY SWEEP", style=label.style_label_up, color=color.green, textcolor=color.white, size=size.small)
+            lastSignalBar := bar_index
+        else if isBearSweep
+            label.new(bar_index, high, "⚠️ SELL SWEEP", style=label.style_label_down, color=color.red, textcolor=color.white, size=size.small)
+            lastSignalBar := bar_index
+
+// --- 📑 DASHBOARD ---
+var table scoreTable = table.new(position.top_right, 2, 6, bgcolor=color.new(color.black, 30), border_color=color.gray, border_width=1)
+if barstate.islast
+    table.cell(scoreTable, 0, 0, "💠 QUANTUM SHIELD V7.2", text_color=color.white, text_size=size.normal)
+    table.cell(scoreTable, 0, 1, "Bias:", text_color=color.gray)
+    table.cell(scoreTable, 1, 1, trendBias, text_color= (trendBias == "BULLISH" ? color.green : color.red))
+    table.cell(scoreTable, 0, 2, "RSI:", text_color=color.gray)
+    table.cell(scoreTable, 1, 2, str.tostring(rsiVal, "#.##"), text_color=color.white)
+    table.cell(scoreTable, 0, 3, "Asian Range:", text_color=color.gray)
+    table.cell(scoreTable, 1, 3, str.tostring(math.abs(asianHigh - asianLow) / syminfo.mintick / 10, "#.##") + " Pips", text_color=color.blue)
+    table.cell(scoreTable, 0, 4, "System Status:", text_color=color.gray)
+    table.cell(scoreTable, 1, 4, "MONITORING", text_color=color.orange)
+
+// --- 🔔 ALERTS ---
+alertcondition(isAPlusBuy, "💎 A+ Buy Signal", "Quantum Shield: High Confidence A+ BUY Setup Detected!")
+alertcondition(isAPlusSell, "💎 A+ Sell Signal", "Quantum Shield: High Confidence A+ SELL Setup Detected!")
+alertcondition(isBullSweep or isBearSweep, "Liquidity Sweep", "Institutional Liquidity Sweep Detected.")

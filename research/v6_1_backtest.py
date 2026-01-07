@@ -164,5 +164,8 @@ async def run_v6_1_backtest(days=58):
     print(f"Raw Win Rate: {(total_wins/(total_wins+total_losses+total_breakevens)*100) if (total_wins+total_losses+total_breakevens)>0 else 0:.1f}%")
     print("═"*40)
 
+
 if __name__ == "__main__":
-    asyncio.run(run_v6_1_backtest(58))
+    import sys
+    days = int(sys.argv[1]) if len(sys.argv) > 1 else 58
+    asyncio.run(run_v6_1_backtest(days))

@@ -1,0 +1,95 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © TradingExpert
+// @version=5
+strategy("Quantum Shield V7.2 - STRATEGY TESTER", overlay=true, 
+     initial_capital=50, 
+     default_qty_type=strategy.percent_of_equity, 
+     default_qty_value=2, 
+     currency=currency.USD,
+     max_boxes_count=100, 
+     max_labels_count=100)
+
+// --- ⚙️ CONFIGURATION & INPUTS ---
+emaLen = input.int(100, "Main Trend EMA", group="Trend")
+rsiLen = input.int(14, "RSI Period", group="Oscillators")
+atrLen = input.int(14, "ATR Period (TP/SL)", group="Risk")
+tpMult = input.float(1.5, "Take Profit ATR Multiplier", group="Risk")
+slMult = input.float(1.5, "Stop Loss ATR Multiplier", group="Risk")
+partialTP0 = input.bool(true, "Enable Gold Partial TP (0.5 ATR)", group="Risk")
+
+asianSession = input.session("0000-0800", "Asian Session Time (UTC)", group="Sessions")
+sweepLookback = input.int(50, "Sweep Lookback", group="Liquidity")
+
+// --- 🧠 CORE CALCULATIONS ---
+emaVal = ta.ema(close, emaLen)
+rsiVal = ta.rsi(close, rsiLen)
+atrVal = ta.atr(atrLen)
+plot(emaVal, "Trend EMA", color.new(color.gray, 60), 2)
+
+// --- 📊 SESSION HIGHLIGHTER ---
+inAsianSession = not na(time(timeframe.period, asianSession + ":1234567", "UTC"))
+var float asianHigh = na
+var float asianLow = na
+
+if inAsianSession
+    if not inAsianSession[1]
+        asianHigh := high
+        asianLow := low
+    else
+        asianHigh := math.max(high, asianHigh)
+        asianLow := math.min(low, asianLow)
+
+// --- 🌊 LIQUIDITY SWEEPS ---
+prevHigh = ta.highest(high[1], sweepLookback)
+prevLow = ta.lowest(low[1], sweepLookback)
+isBullSweep = low < prevLow and close > prevLow
+isBearSweep = high > prevHigh and close < prevHigh
+
+// --- ⚡ IMBALANCES (FVG) ---
+isBullishFVG = low > high[2] and close[1] > high[2]
+isBearishFVG = high < low[2] and close[1] < low[2]
+
+// --- 💎 A+ OPPORTUNITY DETECTION ---
+trendBias = close > emaVal ? "BULLISH" : "BEARISH"
+rsiValidBuy = rsiVal >= 25 and rsiVal <= 40
+rsiValidSell = rsiVal >= 60 and rsiVal <= 75
+
+isAPlusBuy = trendBias == "BULLISH" and isBullSweep and rsiValidBuy
+isAPlusSell = trendBias == "BEARISH" and isBearSweep and rsiValidSell
+
+// --- 📈 STRATEGY EXECUTION (BACKTESTING) ---
+// Risk Management logic
+longSL = close - (atrVal * slMult)
+longTP = close + (atrVal * tpMult)
+longTP0 = close + (atrVal * 0.5) // Gold Partial
+
+shortSL = close + (atrVal * slMult)
+shortTP = close - (atrVal * tpMult)
+shortTP0 = close - (atrVal * 0.5) // Gold Partial
+
+if isAPlusBuy
+    strategy.entry("A+ Long", strategy.long, comment="A+ BUY")
+    if partialTP0
+        strategy.exit("Partial TP", "A+ Long", qty_percent=50, limit=longTP0, comment="TP0")
+    strategy.exit("Final Exit", "A+ Long", limit=longTP, stop=longSL, comment="TP/SL")
+
+if isAPlusSell
+    strategy.entry("A+ Short", strategy.short, comment="A+ SELL")
+    if partialTP0
+        strategy.exit("Partial TP", "A+ Short", qty_percent=50, limit=shortTP0, comment="TP0")
+    strategy.exit("Final Exit", "A+ Short", limit=shortTP, stop=shortSL, comment="TP/SL")
+
+// --- 🎨 VISUALS ---
+if isAPlusBuy
+    label.new(bar_index, low, "💎 A+ BUY", style=label.style_label_up, color=color.green, textcolor=color.white, size=size.large)
+if isAPlusSell
+    label.new(bar_index, high, "💎 A+ SELL", style=label.style_label_down, color=color.red, textcolor=color.white, size=size.large)
+
+// --- 📑 DASHBOARD ---
+var table scoreTable = table.new(position.top_right, 2, 4, bgcolor=color.new(color.black, 30), border_color=color.gray, border_width=1)
+if barstate.islast
+    table.cell(scoreTable, 0, 0, "💠 QUANTUM STRATEGY V7.2", text_color=color.white)
+    table.cell(scoreTable, 0, 1, "Status:", text_color=color.gray)
+    table.cell(scoreTable, 1, 1, "BACKTESTING", text_color=color.yellow)
+    table.cell(scoreTable, 0, 2, "Win Rate:", text_color=color.gray)
+    table.cell(scoreTable, 1, 2, str.tostring(strategy.winrate, "#.##") + "%", text_color=color.white)

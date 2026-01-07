@@ -13,11 +13,11 @@ from config.config import (
 )
 from data.fetcher import DataFetcher
 from indicators.calculations import IndicatorCalculator
-from structure.bias import BiasAnalyzer
-from liquidity.sweep_detector import LiquidityDetector
+# V7.0 Quantum Shield - Optimized Parallel Pipeline
 from strategy.displacement import DisplacementAnalyzer
 from strategy.entry import EntryLogic
 from strategy.scoring import ScoringEngine
+from strategy.imbalance import ImbalanceDetector
 from filters.session_filter import SessionFilter
 from filters.volatility_filter import VolatilityFilter
 from filters.news_filter import NewsFilter
@@ -47,23 +47,64 @@ async def process_symbol(symbol: str, data: dict, news_events: list, ai_analyst:
     m15_df = IndicatorCalculator.add_indicators(m15_df, "m15")
     m5_df = IndicatorCalculator.add_indicators(m5_df, "m5")
 
-    # 2. Top-Down Bias Analysis
-    bias = BiasAnalyzer.get_bias(h1_df, m15_df)
-    h1_trend = BiasAnalyzer.get_h1_trend(h1_df)
+    # 2. V6.1 Simple H1 Trend Check
+    h1_close = h1_df.iloc[-1]['close']
+    h1_ema = h1_df.iloc[-1][f'ema_{EMA_TREND}']
+    h1_trend_val = 1 if h1_close > h1_ema else -1
+    h1_trend = "BULLISH" if h1_trend_val == 1 else "BEARISH"
+    h1_dist = (h1_close - h1_ema) / h1_ema if h1_ema != 0 else 0
+
+    # --- V7.0 OPTIMIZATION: Session-Adaptive Lookback ---
+    now_hour = datetime.now().hour
+    # NY (13-21): 50 bars, London (07-13): 35 bars, Asian (00-07): 21 bars
+    if 13 <= now_hour <= 21: lookback = 50
+    elif 7 <= now_hour < 13: lookback = 35
+    else: lookback = 21
     
-    if bias == "NEUTRAL":
+    # 2. Structure (15M) - Sweep detection
+    m15_df = data['m15']
+    if len(m15_df) < lookback + 1: return None
+    
+    # Calculate previous high/low within adaptive window
+    prev_high = m15_df['high'].iloc[-(lookback+1):-1].max()
+    prev_low = m15_df['low'].iloc[-(lookback+1):-1].min()
+    
+    latest_high = m15_df['high'].iloc[-1]
+    latest_low = m15_df['low'].iloc[-1]
+    latest_close = m15_df['close'].iloc[-1]
+    
+    direction = None
+    setup_tf = "M15"
+    sweep_level = 0
+    sweep_type = "M15_SWEEP"
+    
+    # Buy: latest low < prev_low AND latest close > prev_low
+    if latest_low < prev_low and latest_close > prev_low and h1_trend == "BULLISH":
+        direction = "BUY"
+        sweep_level = prev_low
+    # Sell: latest high > prev_high AND latest close < prev_high
+    elif latest_high > prev_high and latest_close < prev_high and h1_trend == "BEARISH":
+        direction = "SELL"
+        sweep_level = prev_high
+
+    if not direction:
         return None
 
-    # 3. Detect Liquidity Sweep (M15 preferred for intraday)
-    sweep = LiquidityDetector.detect_sweep(m15_df, bias, timeframe="m15")
-    if not sweep:
-        # Fallback to M5 sweep if M15 is quiet
-        sweep = LiquidityDetector.detect_sweep(m5_df, bias, timeframe="m5")
-        if not sweep:
-            return None
+    # --- V7.0 OPTIMIZATION: FVG Confluence ---
+    m5_df = data['m5']
+    fvgs = ImbalanceDetector.detect_fvg(m5_df)
+    has_fvg = ImbalanceDetector.is_price_in_fvg(latest_close, fvgs, direction)
+    
+    # If no FVG on M5, check M15 for deeper institutional interest
+    if not has_fvg:
+        m15_fvgs = ImbalanceDetector.detect_fvg(m15_df)
+        has_fvg = ImbalanceDetector.is_price_in_fvg(latest_close, m15_fvgs, direction)
+    
+    if not has_fvg:
+        # Optimization: We don't block yet, but we will pass it to the ScoringEngine
+        pass
 
     # 4. Displacement Confirmation (on Entry TF)
-    direction = "BUY" if bias == "BULLISH" else "SELL"
     displaced = DisplacementAnalyzer.is_displaced(m5_df, direction)
     
     # 5. Entry Logic (Pullback on M5)
@@ -119,16 +160,11 @@ async def process_symbol(symbol: str, data: dict, news_events: list, ai_analyst:
 
     # 10. V6.0 Anti-Trap: EMA Velocity (Slope)
     ema_slope = IndicatorCalculator.calculate_ema_slope(h1_df, f'ema_{EMA_TREND}')
-    
-    # 11. V6.1 Liquid Shield: Hyper-Extension (H1 Dist)
-    h1_close = h1_df.iloc[-1]['close']
-    h1_ema = h1_df.iloc[-1][f'ema_{EMA_TREND}']
-    h1_dist = (h1_close - h1_ema) / h1_ema if h1_ema != 0 else 0
 
     # 12. Scoring
     score_details = {
-        'h1_aligned': h1_trend == direction.replace('BUY', 'BULLISH').replace('SELL', 'BEARISH'),
-        'sweep_type': sweep['type'],
+        'h1_aligned': True,
+        'sweep_type': sweep_type,
         'displaced': displaced,
         'pullback': entry is not None,
         'session': session,
@@ -139,6 +175,7 @@ async def process_symbol(symbol: str, data: dict, news_events: list, ai_analyst:
         'at_value': at_value,
         'ema_slope': ema_slope,
         'h1_dist': h1_dist,
+        'has_fvg': has_fvg,
         'symbol': symbol,
         'direction': direction
     }
@@ -147,7 +184,7 @@ async def process_symbol(symbol: str, data: dict, news_events: list, ai_analyst:
     # 12. AI Market Intelligence (Confirmation)
     ai_result = {"valid": True, "institutional_logic": "Standard liquidity alignment."}
     
-    # Gold Specialist: Lower AI trigger to 8.5 for GC=F
+    # Gold Specialist: Lower AI trigger to 8.2 for GC=F
     ai_threshold = 8.2 if "GC=F" in symbol else 8.5
     
     if confidence >= ai_threshold:
@@ -155,8 +192,8 @@ async def process_symbol(symbol: str, data: dict, news_events: list, ai_analyst:
             'pair': symbol,
             'direction': direction,
             'h1_trend': h1_trend,
-            'setup_tf': sweep['type'],
-            'liquidity_event': sweep['description'],
+            'setup_tf': sweep_type,
+            'liquidity_event': f'{sweep_type} at {sweep_level:.5f}',
             'confidence': confidence
         })
         
@@ -186,7 +223,10 @@ async def process_symbol(symbol: str, data: dict, news_events: list, ai_analyst:
     confluence_text = ""
     if "GC=F" in symbol and 'DXY' in data_batch:
         dxy_df = data_batch['DXY']
-        dxy_trend = BiasAnalyzer.get_h1_trend(dxy_df)
+        # V6.1: Simple DXY trend check
+        dxy_close = dxy_df.iloc[-1]['close']
+        dxy_ema = dxy_df.iloc[-1]['ema_100']
+        dxy_trend = "BULLISH" if dxy_close > dxy_ema else "BEARISH"
         dxy_bias = "BULLISH" if dxy_trend == "BULLISH" else "BEARISH"
         
         # Gold and DXY are INVERSELY correlated
@@ -195,35 +235,33 @@ async def process_symbol(symbol: str, data: dict, news_events: list, ai_analyst:
         elif direction == "SELL" and dxy_bias == "BULLISH":
             confluence_text = "📊 *DXY Confluence:* ✅ Inverse Dollar strength detected."
         else:
-            confluence_text = "📊 *DXY Confluence:* ⚠️ Divergence from Dollar trend."
+            confluence_text = "📊 *DXY Confluence:* ⚠️ Divergence detected."
 
-    # 11. Final Quality Seal
-    quality = ScoringEngine.get_quality_seal(confidence)
-    
-    # 12. Alert
+    # 11. Alerting
     if confidence >= MIN_CONFIDENCE_SCORE:
-        atr = m5_df.iloc[-1]['atr']
-        levels = EntryLogic.calculate_levels(m5_df, direction, sweep['level'], atr, t=m5_df.index[-1])
+        from audit.optimizer import AutoOptimizer
+        setup_quality = "A+" if confidence >= 9.0 else "A" if confidence >= 8.5 else "B"
         
-        # V3.2: Risk Management for $50 Account
+        # Self-Optimization: Get dynamic multiplier
+        opt_mult = AutoOptimizer.get_multiplier_for_symbol(symbol)
+        
+        levels = EntryLogic.calculate_levels(m5_df, direction, sweep_level, atr, symbol=symbol, opt_mult=opt_mult)
         risk_details = RiskManager.calculate_lot_size(symbol, m5_df.iloc[-1]['close'], levels['sl'])
-
-        # V9.0: Positioning Layers
-        layers = RiskManager.calculate_layers(risk_details['lots'], m5_df.iloc[-1]['close'], levels['sl'], direction)
-
-        upcoming_news = NewsFilter.get_upcoming_events(news_events, symbol)
+        layers = RiskManager.calculate_layers(m5_df.iloc[-1]['close'], levels['sl'], direction, setup_quality)
+        
+        # News Warning
         news_warning = ""
+        upcoming_news = NewsFilter.get_upcoming_events(news_events, symbol)
         if upcoming_news:
-            news_warning = "⚠️ *NEWS WARNING*:\n"
-            for n in upcoming_news:
-                bias_str = f" [{n['bias']}]" if n['bias'] != "NEUTRAL" else ""
-                news_warning += f"• {n['impact']} Impact: {n['title']}{bias_str} ({n['minutes_away']}m)\n"
+            news_warning = "\n⚠️ *Upcoming News:* " + ", ".join([f"{n['title']} ({n['minutes_away']}m)" for n in upcoming_news])
 
         return {
             'symbol': symbol,
             'direction': direction,
-            'setup_quality': quality,
-            'entry_zone': f"{m5_df.iloc[-1]['close']:.5f} - {m5_df.iloc[-1]['close'] + (0.0001 if direction == 'BUY' else -0.0001):.5f}",
+            'setup_quality': "A+" if confidence >= 9.0 else "A" if confidence >= 8.5 else "B",
+            'entry_tf': "M5",
+            'liquidity_event': f"{sweep_type} at {sweep_level:.5f}",
+            'entry_zone': f"{m5_df.iloc[-1]['close']:.5f}",
             'entry_price': m5_df.iloc[-1]['close'],
             'sl': levels['sl'],
             'tp0': levels['tp0'],
@@ -236,7 +274,6 @@ async def process_symbol(symbol: str, data: dict, news_events: list, ai_analyst:
             'news_warning': news_warning,
             'ai_logic': ai_result.get('institutional_logic', 'Institutional volume confirmed via liquidity sweep.'),
             'win_prob': win_prob,
-            'symbol': symbol,
             'confluence': confluence_text,
             'risk_details': risk_details,
             'asian_sweep': asian_sweep,
@@ -254,9 +291,9 @@ async def main():
     is_actions = os.getenv("GITHUB_ACTIONS") == "true"
     
     if is_actions:
-        print("🤖 GITHUB ACTIONS DETECTED: Running Single-Shot Scan (V9.0)")
+        print("🤖 GITHUB ACTIONS DETECTED: Running Single-Shot Scan (V6.1)")
     else:
-        print("🚀 V9.0 LIQUID REAPER LIVE SCANNER STARTING...")
+        print("🛡️ V7.2 QUANTUM SHIELD LIVE SCANNER STARTING...")
     
     print(f"Monitoring: {', '.join([s.split('=')[0].replace('^IXIC', 'NASDAQ') for s in SYMBOLS])}")
     
@@ -265,35 +302,24 @@ async def main():
     renderer = TVChartRenderer()
     journal = SignalJournal()
     
-    # Track sent signals to avoid duplicates on the same candle (only used in local loop)
-    last_processed_candle = {symbol: None for symbol in SYMBOLS}
+    # Startup Heartbeat
+    if os.getenv("SEND_HEARTBEAT") == "true":
+        await telegram_service.test_connection()
+        
+    last_processed_candle = {}
     
     while True:
         try:
-            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            print(f"🕒 [{now}] --- STARTING SCAN ---")
+            news_fetcher = NewsFetcher()
+            news_events = news_fetcher.fetch_news()
             
-            # 1. Startup Diagnostic (only on first iteration of a run)
-            if 'scan_count' not in locals():
-                scan_count = 0
-                print(f"[DIAGNOSTIC] Environment: {'GitHub Actions' if is_actions else 'Local'}")
-                print(f"[DIAGNOSTIC] Telegram Token: {'DETECTED' if os.getenv('TELEGRAM_BOT_TOKEN') else 'MISSING'}")
-                print(f"[DIAGNOSTIC] Telegram Chat ID: {'DETECTED' if os.getenv('TELEGRAM_CHAT_ID') else 'MISSING'}")
-                print(f"[DIAGNOSTIC] AI Key: {'DETECTED' if os.getenv('GEMINI_API_KEY') else 'MISSING'}")
-                
-                # Optional Startup Heartbeat
-                if is_actions or os.getenv("SEND_HEARTBEAT") == "true":
-                    await telegram_service.test_connection()
-
-            scan_count += 1
-            print(f"🕒 [{now}] Scanning {len(SYMBOLS)} symbols for Institutional Setups...")
-            
-            # 1. Fetch News
-            news_events = NewsFetcher.fetch_news()
-            
-            # 2. Fetch Market Data
             fetcher = DataFetcher()
-            market_data = fetcher.get_latest_data()
+            market_data = await fetcher.get_latest_data()
+            
+            if not market_data:
+                if is_actions: break
+                await asyncio.sleep(60)
+                continue
             
             tasks = []
             for symbol, data in market_data.items():
@@ -315,28 +341,25 @@ async def main():
 
             potential_signals = await asyncio.gather(*tasks)
             valid_signals = [s for s in potential_signals if s is not None]
-            
-            # 3. Correlation Filter (V3.0)
-            filtered_signals = CorrelationAnalyzer.filter_signals(valid_signals)
-            
-            # 12. V6.3: Chart Generation (Headless TradingView)
-            if filtered_signals:
-                await renderer.start()
+
+            if valid_signals:
+                # 11. Portfolio Correlation Filter
+                filtered_signals = CorrelationAnalyzer.filter_signals(valid_signals)
+                
                 for signal in filtered_signals:
-                    journal.log_signal(signal)
-                    message = telegram_service.format_signal(signal)
-                    symbol = signal['symbol']
-                    m5_df = market_data[symbol]['m5']
-                    
+                    # Capture Chart
                     try:
-                        chart_image = await renderer.render_chart(symbol, m5_df, signal)
-                        if chart_image:
-                            await telegram_service.send_chart(chart_image, message)
-                        else:
-                            await telegram_service.send_signal(message)
+                        photo = await renderer.render_chart(signal['symbol'], market_data[signal['symbol']])
+                        message = telegram_service.format_signal(signal)
+                        await telegram_service.send_chart(photo, message)
                     except Exception as e:
+                        print(f"Renderer Error: {e}")
+                        # Fallback to text signaling
+                        message = telegram_service.format_signal(signal)
                         await telegram_service.send_signal(message)
-                await renderer.stop()
+                    
+                    # Log to Journal
+                    journal.log_signal(signal)
             
             if is_actions: 
                 print("✅ GitHub Actions Scan Complete.")
@@ -344,6 +367,7 @@ async def main():
                 
         except Exception as e:
             if is_actions: raise e
+            print(f"Error in main loop: {e}")
             await asyncio.sleep(30)
             
         await asyncio.sleep(60)

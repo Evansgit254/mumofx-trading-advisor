@@ -25,6 +25,11 @@ async def test_process_symbol():
         'm5': mock_df.copy().set_index(m5_dates)
     }
     
+    # Ensure all lows are high enough so a 1.10 sweep works
+    data['m15']['low'] = 1.2
+    data['m15']['high'] = 1.3
+    data['m15']['close'] = 1.25
+    
     # Add dummy indicators that process_symbol might expect before calculation
     for df in data.values():
         df['ema_100'] = df['close']
@@ -34,9 +39,20 @@ async def test_process_symbol():
         df['atr'] = 0.01
         df['atr_avg'] = 0.01
     
+    # Manipulate data to satisfy V6.1 Signal logic
+    # 1. H1 Trend (Bullish): close > ema_100
+    data['h1'].iloc[-1, data['h1'].columns.get_loc('close')] = 1.15
+    data['h1'].iloc[-1, data['h1'].columns.get_loc('ema_100')] = 1.10
+    
+    # 2. M15 Sweep (Buy): latest low < prev_low < latest close
+    # prev_low is min of previous 21 bars
+    data['m15'].iloc[-5, data['m15'].columns.get_loc('low')] = 1.12
+    data['m15'].iloc[-1, data['m15'].columns.get_loc('low')] = 1.11 # Sweep
+    data['m15'].iloc[-1, data['m15'].columns.get_loc('close')] = 1.13 # Recovery
+    
     # Mock components used in process_symbol
-    with patch("main.BiasAnalyzer.get_bias", return_value="BULLISH"):
-        with patch("main.LiquidityDetector.detect_sweep", return_value={'type': 'M15_SWEEP', 'level': 1.095, 'description': 'Sweep'}):
+    with patch("main.IndicatorCalculator.add_indicators", side_effect=lambda df, tf: df):
+        with patch("main.DisplacementAnalyzer.is_displaced", return_value=True):
             with patch("main.EntryLogic.check_pullback", return_value={'entry_price': 1.1, 'ema_zone': 1.1, 'rsi_val': 50}):
                 with patch("main.IndicatorCalculator.calculate_poc", return_value=1.1):
                     with patch("main.ScoringEngine.calculate_score", return_value=9.5):
@@ -48,7 +64,6 @@ async def test_process_symbol():
                                     ai_mock = MagicMock()
                                     ai_mock.validate_signal = AsyncMock(return_value={'valid': True, 'institutional_logic': 'Banks buying', 'score_adjustment': 0.1})
                                     
-                                    # We also need to mock some globals if they aren't available or if logic expects them
                                     with patch("main.IndicatorCalculator.calculate_adr", return_value=100.0):
                                         with patch("main.IndicatorCalculator.get_asian_range", return_value={'high': 1.11, 'low': 1.1}):
                                             res = await process_symbol(symbol, data, [], ai_mock, data)

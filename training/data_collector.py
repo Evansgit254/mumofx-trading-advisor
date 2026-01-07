@@ -5,7 +5,6 @@ from datetime import datetime, timedelta
 from config.config import SYMBOLS, EMA_TREND, EMA_FAST, EMA_SLOW
 from data.fetcher import DataFetcher
 from indicators.calculations import IndicatorCalculator
-from structure.bias import BiasAnalyzer
 from strategy.displacement import DisplacementAnalyzer
 from strategy.entry import EntryLogic
 

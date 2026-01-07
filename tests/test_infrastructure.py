@@ -8,13 +8,13 @@ import io
 
 @pytest.mark.asyncio
 async def test_ai_analyst_success():
-    with patch("google.generativeai.GenerativeModel") as mock_model:
+    with patch("google.genai.Client") as mock_client_class:
         # Configure mock
         mock_instance = MagicMock()
         mock_response = MagicMock()
         mock_response.text = '{"valid": true, "institutional_logic": "Test logic", "score_adjustment": 0.5}'
-        mock_instance.generate_content.return_value = mock_response
-        mock_model.return_value = mock_instance
+        mock_instance.models.generate_content.return_value = mock_response
+        mock_client_class.return_value = mock_instance
         
         with patch("config.config.GEMINI_API_KEY", "test_key"):
             analyst = AIAnalyst()

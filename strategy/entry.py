@@ -45,7 +45,7 @@ class EntryLogic:
         return None
 
     @staticmethod
-    def calculate_levels(df: pd.DataFrame, direction: str, sweep_level: float, atr: float, t=None):
+    def calculate_levels(df: pd.DataFrame, direction: str, sweep_level: float, atr: float, t=None, symbol=None, opt_mult=None):
         """
         Calculates Stop Loss and Take Profit levels (V8.0 Session Adaptive).
         """
@@ -64,6 +64,10 @@ class EntryLogic:
             elif 0 <= hour <= 8:
                 tp2_mult = 1.2
         
+        # Self-Optimization Overhaul (V7.2)
+        if opt_mult:
+            tp2_mult = opt_mult
+        
         if direction == "BUY":
             sl = sweep_level - (0.5 * atr)
             tp0 = latest_price + (0.5 * atr)
@@ -75,11 +79,19 @@ class EntryLogic:
             tp1 = latest_price - (1.0 * atr)
             tp2 = latest_price - (tp2_mult * atr)
             
-        return {
+        levels = {
             'entry': latest_price,
             'sl': sl,
             'tp0': tp0,
             'tp1': tp1,
             'tp2': tp2,
-            'tp2_mult': tp2_mult
+            'tp2_mult': tp2_mult,
+            'tp_partial': None
         }
+        
+        # Gold Specialist: Partial TP at 0.5 ATR (TP0)
+        # Using a marker or checking symbol in main.py is better, 
+        # but we'll include it in the levels dict for transparency.
+        levels['tp_partial'] = tp0
+        
+        return levels

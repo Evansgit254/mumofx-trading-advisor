@@ -63,8 +63,8 @@ class TelegramService:
             emoji = "🚀" if data['direction'] == "BUY" else "☄️"
         
         return f"""
-{emoji} *NEW {data['setup_quality']} SETUP*
-*Symbol:* #{data['symbol'].replace('=X', '')}
+{emoji} *NEW {data['setup_quality']} SETUP* {"💎 (LAYERING RECOMMENDED)" if data['setup_quality'] == "A+" else ""}
+*Symbol:* #{data['symbol'].replace('=X', '').replace('_', '\\_')}
 *Market Bias:* {data['direction']} (Institutional)
 *TF:* {data['entry_tf']} | {data['session']} Session
 
@@ -78,7 +78,7 @@ _Total Vol: {sum(l['lots'] for l in data['layers']):.2f}_
 • {data['sl']:.5f} (below sweep)
 
 *Liquidity Event:*
-• {data['liquidity_event']}
+• {data['liquidity_event'].replace('_', '\\_')}
 
 🧠 *AI Market Analysis:*
 • {data['ai_logic']}
@@ -101,8 +101,8 @@ _Total Vol: {sum(l['lots'] for l in data['layers']):.2f}_
 • TP1: {data['tp1']:.5f}
 • TP2: {data['tp2']:.5f}
 
-🪓 *LIQUID REAPER MANAGEMENT:*
-1. **At TP0:** Close 50% of position and MOVE SL TO BREAKEVEN.
+🎯 *LIQUID REAPER MANAGEMENT:*
+1. {"**🥇 GOLD SPECIALIST PARTIAL:** Close 50% @ TP0 + Move SL to BE" if "GC=F" in data.get('symbol', '') else "**At TP0:** Close 50% of position and MOVE SL TO BREAKEVEN."}
 2. **At TP1:** Trail SL to TP0 (Lock in more profit).
 3. **Final Target:** Let remaining 50% run to TP2.
 4. **Safety Filter:** If price fails to hit TP0 but stalls for 30 mins, exit manually at BE.
@@ -114,7 +114,7 @@ _Total Vol: {sum(l['lots'] for l in data['layers']):.2f}_
 
 🎯 *Alpha Sniper (V6.0):*
 • Session Sniper: {"✅ ASIAN SWEEP" if data.get('asian_sweep') else "Standard Liquidity"} {"(High Quality)" if data.get('asian_quality') else "(Low Range)"}
-• Volume Sniper: {"⚠️ UNSAFE VALUE ZONE" if data.get('at_value') else "✅ EXTREME VALUE (INSTITUTIONAL)"} (POC: {data.get('poc'):.5f})
+• Volume Sniper: {"⚠️ UNSAFE VALUE ZONE" if data.get('at_value') else "✅ EXTREME VALUE (INSTITUTIONAL)"} (POC: {data.get('poc', 0):.5f})
 • Momentum Sniper: {"✅ IDEAL VELOCITY" if abs(data.get('ema_slope', 0)) < 0.05 else "⚠️ STEEP TREND (RISKY)"} (Slope: {data.get('ema_slope', 0):.4f}%)
 • ADR Usage: {data.get('adr_usage')}% {"⚠️ EXHAUSTED" if data.get('adr_exhausted') else "✅ HEALTHY"}
 

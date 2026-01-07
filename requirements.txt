@@ -8,10 +8,10 @@ python-dotenv
 pytz
 requests
 pytest
-google-generativeai
 pytest-asyncio
 scikit-learn
 joblib
+google-genai
 playwright
 gspread==6.0.0
 oauth2client==4.1.3

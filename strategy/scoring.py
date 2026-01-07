@@ -28,6 +28,10 @@ class ScoringEngine:
         if details.get('pullback'):
             score += 1.5
             
+        # 5. V7.0 Quantum: FVG Confluence Bonus
+        if details.get('has_fvg'):
+            score += 2.0 # High value institutional footprint
+            
         # 5. Volatility (Quality expansion)
         if details.get('volatile'):
             score += 0.5

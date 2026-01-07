@@ -7,4 +7,7 @@ logs/
 data/historical/
 *.png
 fxblue_history.csv
-logs/
+.coverage
+.pytest_cache/
+htmlcov/
+.DS_Store

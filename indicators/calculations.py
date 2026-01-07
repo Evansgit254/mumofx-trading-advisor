@@ -50,8 +50,10 @@ class IndicatorCalculator:
         """
         if h1_df.empty: return 0.0
         # Group by day and calculate (High - Low)
-        daily_ranges = h1_df.groupby(h1_df.index.date).apply(lambda x: x['high'].max() - x['low'].min())
-        return daily_ranges.tail(ADR_PERIOD).mean()
+        daily_ranges = h1_df.groupby(h1_df.index.date).apply(lambda x: x['high'].max() - x['low'].min(), include_groups=False)
+        if daily_ranges.empty: return 0.0
+        val = daily_ranges.tail(ADR_PERIOD).mean()
+        return val if pd.notnull(val) else 0.0
 
     @staticmethod
     def get_asian_range(df: pd.DataFrame) -> dict:

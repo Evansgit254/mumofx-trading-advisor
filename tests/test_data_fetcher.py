@@ -72,7 +72,8 @@ def test_fetch_range_error():
         res = DataFetcher.fetch_range("EURUSD=X", "1h", "2024-01-01", "2024-01-02")
         assert res is None
 
-def test_get_latest_data_dxy():
+@pytest.mark.asyncio
+async def test_get_latest_data_dxy():
     """Test DXY data fetch in get_latest_data"""
     with patch.object(DataFetcher, 'fetch_data') as mock_fetch:
         mock_df = pd.DataFrame({
@@ -83,10 +84,11 @@ def test_get_latest_data_dxy():
         
         with patch("config.config.SYMBOLS", ["EURUSD=X"]):
             with patch("config.config.DXY_SYMBOL", "DX-Y.NYB"):
-                res = DataFetcher.get_latest_data()
+                res = await DataFetcher.get_latest_data()
                 assert 'DXY' in res or len(res) >= 0  # DXY may or may not be included
 
-def test_get_latest_data_symbol_failure():
+@pytest.mark.asyncio
+async def test_get_latest_data_symbol_failure():
     """Test get_latest_data when symbol fetch fails"""
     call_count = [0]
     def mock_fetch_side_effect(symbol, tf, period):
@@ -97,6 +99,6 @@ def test_get_latest_data_symbol_failure():
     
     with patch.object(DataFetcher, 'fetch_data', side_effect=mock_fetch_side_effect):
         with patch("config.config.SYMBOLS", ["EURUSD=X"]):
-            res = DataFetcher.get_latest_data()
+            res = await DataFetcher.get_latest_data()
             # Should handle gracefully, possibly empty dict or only DXY
             assert isinstance(res, dict)
