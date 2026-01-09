@@ -13,6 +13,10 @@ from strategy.scoring import ScoringEngine
 from strategy.imbalance import ImbalanceDetector
 from strategy.crt import CRTAnalyzer
 from filters.session_filter import SessionFilter
+from strategies.smc_strategy import SMCStrategy
+from strategies.breakout_strategy import BreakoutStrategy
+from strategies.price_action_strategy import PriceActionStrategy
+from audit.performance_analyzer import PerformanceAnalyzer
 
 # Load ML Model
 ML_MODEL = None
@@ -65,6 +69,11 @@ async def run_v8_backtest(days=30):
     
     cooldowns = {s: timeline[0] - timedelta(days=1) for s in SYMBOLS}
     
+    # Initialize Strategies
+    strategies = [SMCStrategy(), BreakoutStrategy(), PriceActionStrategy()]
+    analyzer = PerformanceAnalyzer()
+    analyzer.calculate_weights()
+    
     print(f"Simulating {len(timeline)} bars (M5 resolution)...")
     
     for t in timeline:
@@ -95,148 +104,66 @@ async def run_v8_backtest(days=30):
             state_h4 = h4_df_full[h4_df_full.index <= t]
             if state_h4.empty: continue
             
-            # 1. Trend (H1)
-            trend_ema = latest_h1[f'ema_{EMA_TREND}']
-            if pd.isna(trend_ema): continue
-            
-            # 1. Sweep Detection (M15 with M5 fallback for Gold)
-            now_hour = t.hour
-            lookback = 50 if 13 <= now_hour <= 21 else 35 if 7 <= now_hour < 13 else 21
-            
-            # Gold Specialist: Aggressive Lookback for 1-signal/day target
-            if symbol == "GC=F":
-                lookback = 20
-            
-            def detect_sweep(df, lb):
-                if len(df) <= lb: return None, None
-                p_low = df.iloc[-(lb+1):-1]['low'].min()
-                p_high = df.iloc[-(lb+1):-1]['high'].max()
-                lat = df.iloc[-1]
-                if lat['low'] < p_low < lat['close']: return "BUY", p_low
-                if lat['high'] > p_high > lat['close']: return "SELL", p_high
-                return None, None
-
-            direction, sweep_level = detect_sweep(state_m15, lookback)
-            
-            # Gold Specialist: If no M15 sweep, check M5 for lower-tier institutional activity
-            if not direction and symbol == "GC=F":
-                m5_lb = lookback * 3 
-                direction, sweep_level = detect_sweep(state_m5, m5_lb)
-                
-            if not direction: continue
-
-            # 2. Trend Validation (H1)
-            trend_ema = latest_h1[f'ema_{EMA_TREND}']
-            if pd.isna(trend_ema): continue
-            
-            h1_trend = "BULLISH" if latest_h1['close'] > trend_ema else "BEARISH"
-            
-            # Gold Specialist: Lenient Trend (Within 1 ATR of EMA is acceptable)
-            if symbol == "GC=F":
-                h1_atr = latest_h1['atr']
-                if abs(latest_h1['close'] - trend_ema) < h1_atr:
-                    # Near-Trend Gold setups are forced to "Aligned"
-                    pass 
-                elif (direction == "BUY" and h1_trend != "BULLISH") or (direction == "SELL" and h1_trend != "BEARISH"):
-                    continue
-            else:
-                if (direction == "BUY" and h1_trend != "BULLISH") or (direction == "SELL" and h1_trend != "BEARISH"):
-                    continue
-            
-            # 3. V8.0 INTEGRATION: 4H Level Alignment & CRT
-            h4_levels = IndicatorCalculator.get_h4_levels(state_h4)
-            h4_sweep = False
-            if h4_levels:
-                if direction == "BUY" and latest_m15['low'] < h4_levels['prev_h4_low'] and latest_m15['close'] > h4_levels['prev_h4_low']:
-                    h4_sweep = True
-                elif direction == "SELL" and latest_m15['high'] > h4_levels['prev_h4_high'] and latest_m15['close'] < h4_levels['prev_h4_high']:
-                    h4_sweep = True
-            
-            crt_validation = CRTAnalyzer.validate_setup(state_m15, direction)
-            
-            # 4. Filters & Confluences
-            fvgs_m5 = ImbalanceDetector.detect_fvg(state_m5)
-            has_fvg = ImbalanceDetector.is_price_in_fvg(latest_m5['close'], fvgs_m5, direction)
-            if not has_fvg:
-                fvgs_m15 = ImbalanceDetector.detect_fvg(state_m15)
-                has_fvg = ImbalanceDetector.is_price_in_fvg(latest_m15['close'], fvgs_m15, direction)
-
-            is_gold = (symbol == "GC=F")
-            # Gold Specialist: Expanded Session (08:00 - 21:00 UTC)
-            if is_gold:
-                if not (time(8, 0) <= t.time() <= time(21, 0)):
-                    continue
-            else:
-                if not SessionFilter.is_valid_session(t):
+            for strategy in strategies:
+                try:
+                    signal = await strategy.analyze(symbol, {
+                        'h1': state_h1, 'h4': state_h4, 'm15': state_m15, 'm5': state_m5
+                    }, [], {}) # news_events empty for backtest
+                    
+                    if not signal: continue
+                    
+                    # Apply Dynamic Strategy Multiplier
+                    multiplier = PerformanceAnalyzer.get_strategy_multiplier(strategy.get_id())
+                    confidence = round(signal['confidence'] * multiplier, 1)
+                    
+                    threshold = GOLD_CONFIDENCE_THRESHOLD if symbol == "GC=F" else MIN_CONFIDENCE_SCORE
+                    if confidence < threshold: continue
+                    
+                    # Execute Trade
+                    from audit.optimizer import AutoOptimizer
+                    opt_mult = AutoOptimizer.get_multiplier_for_symbol(symbol)
+                    levels = EntryLogic.calculate_levels(state_m5, signal['direction'], signal.get('sweep_level', latest_m5['close']), latest_m5['atr'], symbol=symbol, opt_mult=opt_mult)
+                    
+                    m5_start_idx = m5_df_full.index.get_indexer([t], method='nearest')[0]
+                    hit = None
+                    tp0_hit = False
+                    direction = signal['direction']
+                    entry_p = signal['entry_price']
+                    
+                    for j in range(m5_start_idx + 1, min(m5_start_idx + 288, len(m5_df_full))):
+                        fut = m5_df_full.iloc[j]
+                        if direction == "BUY":
+                            if fut['high'] >= levels['tp0']: tp0_hit = True
+                            if tp0_hit and fut['low'] <= entry_p: hit = "BE"; break
+                            if fut['low'] <= levels['sl']: hit = "LOSS"; break
+                            if fut['high'] >= levels['tp2']: hit = "WIN"; break
+                        else:
+                            if fut['low'] <= levels['tp0']: tp0_hit = True
+                            if tp0_hit and fut['high'] >= entry_p: hit = "BE"; break
+                            if fut['high'] >= levels['sl']: hit = "LOSS"; break
+                            if fut['low'] <= levels['tp2']: hit = "WIN"; break
+                    
+                    if hit:
+                        r_val = 2.0 if hit == "WIN" else -1.0 if hit == "LOSS" else 0.5 if tp0_hit else 0.0
+                        trades.append({
+                            't': t, 
+                            'symbol': symbol, 
+                            'dir': direction, 
+                            'res': hit, 
+                            'score': confidence, 
+                            'r': r_val, 
+                            'strategy_id': strategy.get_id(),
+                            'confidence': confidence
+                        })
+                        if hit == "WIN": total_wins += 1
+                        elif hit == "LOSS": total_losses += 1
+                        elif hit == "BE": total_breakevens += 1
+                        cooldowns[symbol] = t + timedelta(hours=4) # Shorter cooldown for independent strategies
+                        break # Only one strategy per bar per symbol for backtest consistency
+                except Exception as e:
                     continue
             
-            # Displacement confirmed on M15 for backtest consistency
-            displaced = DisplacementAnalyzer.is_displaced(state_m15, direction)
-            
-            # 5. Scoring
-            score_details = {
-                'h1_aligned': True,
-                'sweep_type': "M15_SWEEP",
-                'displaced': displaced,
-                'pullback': True, # Assume pullback/recovery on same bar or next
-                'volatile': latest_m5['atr'] > latest_m5.get('atr_avg', 0),
-                'h4_sweep': h4_sweep,
-                'crt_bonus': crt_validation.get('score_bonus', 0),
-                'symbol': symbol,
-                'direction': direction,
-                'has_fvg': has_fvg
-            }
-            # Add missing fields to avoid ScoringEngine issues
-            score_details.update({
-                'asian_sweep': False, 'asian_quality': False, # Asian range check is complex in backtest timeline
-                'adr_exhausted': False, 'at_value': False, 'ema_slope': 0, 'h1_dist': 0
-            })
-            
-            confidence = ScoringEngine.calculate_score(score_details)
-            threshold = GOLD_CONFIDENCE_THRESHOLD if symbol == "GC=F" else MIN_CONFIDENCE_SCORE
-            if confidence < threshold: continue
-            
-            # 6. Execute Trade
-            from audit.optimizer import AutoOptimizer
-            opt_mult = AutoOptimizer.get_multiplier_for_symbol(symbol)
-            levels = EntryLogic.calculate_levels(state_m5, direction, sweep_level, latest_m5['atr'], symbol=symbol, opt_mult=opt_mult)
-            
-            m5_start_idx = m5_df_full.index.get_indexer([t], method='nearest')[0]
-            hit = None
-            tp0_hit = False
-            for j in range(m5_start_idx + 1, min(m5_start_idx + 288, len(m5_df_full))):
-                fut = m5_df_full.iloc[j]
-                if direction == "BUY":
-                    if fut['high'] >= levels['tp0']: tp0_hit = True
-                    if tp0_hit and fut['low'] <= levels['entry']: hit = "BE"; break
-                    if fut['low'] <= levels['sl']: hit = "LOSS"; break
-                    if fut['high'] >= levels['tp2']: hit = "WIN"; break
-                else:
-                    if fut['low'] <= levels['tp0']: tp0_hit = True
-                    if tp0_hit and fut['high'] >= levels['entry']: hit = "BE"; break
-                    if fut['high'] >= levels['sl']: hit = "LOSS"; break
-                    if fut['low'] <= levels['tp2']: hit = "WIN"; break
-            
-            if hit:
-                r_val = 2.0 if hit == "WIN" else -1.0 if hit == "LOSS" else 0.5 if tp0_hit else 0.0
-                trades.append({
-                    't': t, 
-                    'symbol': symbol, 
-                    'dir': direction, 
-                    'res': hit, 
-                    'score': confidence, 
-                    'r': r_val, 
-                    'h4': h4_sweep, 
-                    'crt': crt_validation['phase'],
-                    'has_fvg': has_fvg,
-                    'displaced': displaced,
-                    'atr': latest_m5['atr'],
-                    'confidence': confidence
-                })
-                if hit == "WIN": total_wins += 1
-                elif hit == "LOSS": total_losses += 1
-                elif hit == "BE": total_breakevens += 1
-                cooldowns[symbol] = t + timedelta(hours=8)
+            # Strategy loop ends
 
     # Final Report
     print("\n" + "═"*55)
@@ -258,8 +185,8 @@ async def run_v8_backtest(days=30):
         print(f"📊 Audit logs exported to research/audit_results_v8.csv")
 
     # Analyze confluences
-    h4_trades = [tr for tr in trades if tr['h4']]
-    crt_trades = [tr for tr in trades if "DISTRIBUTION" in tr['crt']]
+    h4_trades = [tr for tr in trades if tr.get('h4')]
+    crt_trades = [tr for tr in trades if "DISTRIBUTION" in tr.get('crt', '')]
     
     if h4_trades:
         h4_wins = len([tr for tr in h4_trades if tr['res'] == "WIN"])

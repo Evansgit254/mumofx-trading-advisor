@@ -22,16 +22,18 @@ class SignalJournal:
                     tp2 REAL,
                     confidence REAL,
                     session TEXT,
+                    strategy_id TEXT,
                     status TEXT DEFAULT 'PENDING',
-                    result_pips REAL DEFAULT 0
+                    result_pips REAL DEFAULT 0,
+                    res TEXT DEFAULT 'PENDING'
                 )
             """)
 
     def log_signal(self, signal_data):
         with sqlite3.connect(self.db_path) as conn:
             conn.execute("""
-                INSERT INTO signals (timestamp, symbol, direction, entry_price, sl, tp0, tp1, tp2, confidence, session)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO signals (timestamp, symbol, direction, entry_price, sl, tp0, tp1, tp2, confidence, session, strategy_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 datetime.now().isoformat(),
                 signal_data['symbol'],
@@ -42,8 +44,24 @@ class SignalJournal:
                 signal_data['tp1'],
                 signal_data['tp2'],
                 signal_data['confidence'],
-                signal_data['session']
+                signal_data['session'],
+                signal_data.get('strategy_id', 'unknown')
             ))
+            
+        # Also log to CSV for PerformanceAnalyzer audit
+        csv_path = "audit/journal_v8.csv"
+        df = pd.DataFrame([{
+            't': datetime.now().isoformat(),
+            'symbol': signal_data['symbol'],
+            'dir': signal_data['direction'],
+            'res': 'PENDING',
+            'score': signal_data['confidence'],
+            'strategy_id': signal_data.get('strategy_id', 'unknown')
+        }])
+        if not os.path.exists(csv_path):
+            df.to_csv(csv_path, index=False)
+        else:
+            df.to_csv(csv_path, mode='a', header=False, index=False)
 
     def get_pending_signals(self):
         with sqlite3.connect(self.db_path) as conn:
