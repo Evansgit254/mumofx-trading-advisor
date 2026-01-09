@@ -62,6 +62,7 @@ NEWS_IMPACT_LEVELS = ["High", "Medium"] # Impact levels to track
 
 # SCORING
 MIN_CONFIDENCE_SCORE = 7.5
+GOLD_CONFIDENCE_THRESHOLD = 6.5 # Optimized for 1 signal/day target
 
 # RISK MANAGEMENT V3.2 ($50 Account Optimized)
 ACCOUNT_BALANCE = 50.0 # User's target starting balance

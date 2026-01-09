@@ -4,7 +4,7 @@ import joblib
 import os
 import sys
 from datetime import datetime, timedelta, time
-from config.config import SYMBOLS, EMA_TREND, MIN_CONFIDENCE_SCORE, ATR_MULTIPLIER, ADR_THRESHOLD_PERCENT, ASIAN_RANGE_MIN_PIPS, DXY_SYMBOL, INSTITUTIONAL_TF
+from config.config import SYMBOLS, EMA_TREND, MIN_CONFIDENCE_SCORE, GOLD_CONFIDENCE_THRESHOLD, ATR_MULTIPLIER, ADR_THRESHOLD_PERCENT, ASIAN_RANGE_MIN_PIPS, DXY_SYMBOL, INSTITUTIONAL_TF
 from data.fetcher import DataFetcher
 from indicators.calculations import IndicatorCalculator
 from strategy.displacement import DisplacementAnalyzer
@@ -56,8 +56,8 @@ async def run_v8_backtest(days=30):
         print("❌ No data fetched. Check internet or symbols.")
         return
     
-    # Timeline based on earliest m15 index
-    timeline = all_data[valid_symbols[0]]['m15'].index
+    # Timeline based on earliest m5 index
+    timeline = all_data[valid_symbols[0]]['m5'].index
     total_wins = 0
     total_losses = 0
     total_breakevens = 0
@@ -65,26 +65,26 @@ async def run_v8_backtest(days=30):
     
     cooldowns = {s: timeline[0] - timedelta(days=1) for s in SYMBOLS}
     
-    print(f"Simulating {len(timeline)} bars...")
+    print(f"Simulating {len(timeline)} bars (M5 resolution)...")
     
     for t in timeline:
         for symbol in valid_symbols:
             if t < cooldowns[symbol]: continue
             
-            m15_df_full = all_data[symbol]['m15']
-            if t not in m15_df_full.index: continue
+            m5_df_full = all_data[symbol]['m5']
+            if t not in m5_df_full.index: continue
             
-            m15_idx = m15_df_full.index.get_loc(t)
-            if m15_idx < 60: continue # Need history for lookbacks
+            m5_idx = m5_df_full.index.get_loc(t)
+            if m5_idx < 100: continue # Need history
             
             # State at time T
-            state_m15 = m15_df_full.iloc[:m15_idx+1]
-            latest_m15 = state_m15.iloc[-1]
-            
-            m5_df_full = all_data[symbol]['m5']
-            state_m5 = m5_df_full[m5_df_full.index <= t]
-            if state_m5.empty: continue
+            state_m5 = m5_df_full.iloc[:m5_idx+1]
             latest_m5 = state_m5.iloc[-1]
+            
+            m15_df_full = all_data[symbol]['m15']
+            state_m15 = m15_df_full[m15_df_full.index <= t]
+            if state_m15.empty: continue
+            latest_m15 = state_m15.iloc[-1]
             
             h1_df_full = all_data[symbol]['h1']
             state_h1 = h1_df_full[h1_df_full.index <= t]
@@ -98,23 +98,50 @@ async def run_v8_backtest(days=30):
             # 1. Trend (H1)
             trend_ema = latest_h1[f'ema_{EMA_TREND}']
             if pd.isna(trend_ema): continue
-            h1_trend = "BULLISH" if latest_h1['close'] > trend_ema else "BEARISH"
             
-            # 2. M15 Sweep (Liquidity)
-            # Adaptive lookback simulation (simplified for backtest)
+            # 1. Sweep Detection (M15 with M5 fallback for Gold)
             now_hour = t.hour
             lookback = 50 if 13 <= now_hour <= 21 else 35 if 7 <= now_hour < 13 else 21
-            prev_low = state_m15.iloc[-(lookback+1):-1]['low'].min()
-            prev_high = state_m15.iloc[-(lookback+1):-1]['high'].max()
             
-            direction = None
-            sweep_level = None
-            if latest_m15['low'] < prev_low < latest_m15['close'] and h1_trend == "BULLISH":
-                direction = "BUY"; sweep_level = prev_low
-            elif latest_m15['high'] > prev_high > latest_m15['close'] and h1_trend == "BEARISH":
-                direction = "SELL"; sweep_level = prev_high
+            # Gold Specialist: Aggressive Lookback for 1-signal/day target
+            if symbol == "GC=F":
+                lookback = 20
+            
+            def detect_sweep(df, lb):
+                if len(df) <= lb: return None, None
+                p_low = df.iloc[-(lb+1):-1]['low'].min()
+                p_high = df.iloc[-(lb+1):-1]['high'].max()
+                lat = df.iloc[-1]
+                if lat['low'] < p_low < lat['close']: return "BUY", p_low
+                if lat['high'] > p_high > lat['close']: return "SELL", p_high
+                return None, None
+
+            direction, sweep_level = detect_sweep(state_m15, lookback)
+            
+            # Gold Specialist: If no M15 sweep, check M5 for lower-tier institutional activity
+            if not direction and symbol == "GC=F":
+                m5_lb = lookback * 3 
+                direction, sweep_level = detect_sweep(state_m5, m5_lb)
                 
             if not direction: continue
+
+            # 2. Trend Validation (H1)
+            trend_ema = latest_h1[f'ema_{EMA_TREND}']
+            if pd.isna(trend_ema): continue
+            
+            h1_trend = "BULLISH" if latest_h1['close'] > trend_ema else "BEARISH"
+            
+            # Gold Specialist: Lenient Trend (Within 1 ATR of EMA is acceptable)
+            if symbol == "GC=F":
+                h1_atr = latest_h1['atr']
+                if abs(latest_h1['close'] - trend_ema) < h1_atr:
+                    # Near-Trend Gold setups are forced to "Aligned"
+                    pass 
+                elif (direction == "BUY" and h1_trend != "BULLISH") or (direction == "SELL" and h1_trend != "BEARISH"):
+                    continue
+            else:
+                if (direction == "BUY" and h1_trend != "BULLISH") or (direction == "SELL" and h1_trend != "BEARISH"):
+                    continue
             
             # 3. V8.0 INTEGRATION: 4H Level Alignment & CRT
             h4_levels = IndicatorCalculator.get_h4_levels(state_h4)
@@ -133,8 +160,15 @@ async def run_v8_backtest(days=30):
             if not has_fvg:
                 fvgs_m15 = ImbalanceDetector.detect_fvg(state_m15)
                 has_fvg = ImbalanceDetector.is_price_in_fvg(latest_m15['close'], fvgs_m15, direction)
-            
-            if not SessionFilter.is_valid_session(t): continue
+
+            is_gold = (symbol == "GC=F")
+            # Gold Specialist: Expanded Session (08:00 - 21:00 UTC)
+            if is_gold:
+                if not (time(8, 0) <= t.time() <= time(21, 0)):
+                    continue
+            else:
+                if not SessionFilter.is_valid_session(t):
+                    continue
             
             # Displacement confirmed on M15 for backtest consistency
             displaced = DisplacementAnalyzer.is_displaced(state_m15, direction)
@@ -159,7 +193,8 @@ async def run_v8_backtest(days=30):
             })
             
             confidence = ScoringEngine.calculate_score(score_details)
-            if confidence < MIN_CONFIDENCE_SCORE: continue
+            threshold = GOLD_CONFIDENCE_THRESHOLD if symbol == "GC=F" else MIN_CONFIDENCE_SCORE
+            if confidence < threshold: continue
             
             # 6. Execute Trade
             from audit.optimizer import AutoOptimizer

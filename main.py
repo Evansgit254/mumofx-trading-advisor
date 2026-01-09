@@ -4,6 +4,7 @@ from datetime import datetime
 from config.config import (
     SYMBOLS, 
     MIN_CONFIDENCE_SCORE, 
+    GOLD_CONFIDENCE_THRESHOLD,
     NARRATIVE_TF, 
     STRUCTURE_TF, 
     ENTRY_TF,
@@ -63,6 +64,10 @@ async def process_symbol(symbol: str, data: dict, news_events: list, ai_analyst:
     elif 7 <= now_hour < 13: lookback = 35
     else: lookback = 21
     
+    # Gold Specialist: Aggressive Lookback for 1-signal/day target
+    if symbol == "GC=F":
+        lookback = 20 # Capture minor liquidity pools 🥇
+    
     # 2. Structure (15M) - Sweep detection
     m15_df = data['m15']
     if len(m15_df) < lookback + 1: 
@@ -121,12 +126,15 @@ async def process_symbol(symbol: str, data: dict, news_events: list, ai_analyst:
     entry = EntryLogic.check_pullback(m5_df, direction)
     
     # 6. Filters
-    session = SessionFilter.get_session_name()
-    volatile = VolatilityFilter.is_volatile(m5_df)
-    atr_status = VolatilityFilter.get_atr_status(m5_df)
     is_news_safe = NewsFilter.is_news_safe(news_events, symbol)
     
-    if not is_news_safe:
+    # Gold Specialist: Expanded Session (08:00 - 21:00 UTC)
+    if symbol == "GC=F":
+        is_session = 8 <= datetime.now().hour <= 21
+    else:
+        is_session = SessionFilter.is_valid_session()
+
+    if not is_news_safe or not is_session:
         return None
 
     # 7. V4.0 Ultra-Quant Analysis
@@ -250,7 +258,8 @@ async def process_symbol(symbol: str, data: dict, news_events: list, ai_analyst:
             confluence_text = "📊 *DXY Confluence:* ⚠️ Divergence detected."
 
     # 11. Alerting
-    if confidence >= MIN_CONFIDENCE_SCORE:
+    threshold = GOLD_CONFIDENCE_THRESHOLD if symbol == "GC=F" else MIN_CONFIDENCE_SCORE
+    if confidence >= threshold:
         from audit.optimizer import AutoOptimizer
         setup_quality = "A+" if confidence >= 9.0 else "A" if confidence >= 8.5 else "B"
         

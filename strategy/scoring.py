@@ -62,9 +62,11 @@ class ScoringEngine:
             if not details.get('h1_aligned'):
                 score -= 5.0 
             
-            # V8.1 Audit: Gold is prone to traps. Require displacement AND FVG.
-            if not details.get('displaced') or not details.get('has_fvg'):
-                score -= 4.0 # Disqualify messy Gold setups
+            # V8.1 Audit: Gold is prone to traps. Penalize if both are missing.
+            if not details.get('displaced') and not details.get('has_fvg'):
+                score -= 4.0 # Disqualify truly messy Gold setups
+            elif not details.get('displaced') or not details.get('has_fvg'):
+                score -= 1.5 # Minor penalty if missing one confluence
             
             # Stricter Asian Range for Gold (20 pips instead of 15)
             if details.get('asian_sweep') and not details.get('asian_quality'):
