@@ -11,3 +11,4 @@ fxblue_history.csv
 .pytest_cache/
 htmlcov/
 .DS_Store
+.venv_backtest

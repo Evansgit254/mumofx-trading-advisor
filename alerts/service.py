@@ -62,9 +62,13 @@ class TelegramService:
         if "GC=F" in data.get('symbol', ''):
             emoji = "🚀" if data['direction'] == "BUY" else "☄️"
         
+        # Pre-process strings to avoid backslashes in f-string (Fix for Python 3.11)
+        symbol_safe = data['symbol'].replace('=X', '').replace('_', '\\_')
+        event_safe = data['liquidity_event'].replace('_', '\\_')
+        
         return f"""
 {emoji} *NEW {data['setup_quality']} SETUP* {"💎 (LAYERING RECOMMENDED)" if data['setup_quality'] == "A+" else ""}
-*Symbol:* #{data['symbol'].replace('=X', '').replace('_', '\\_')}
+*Symbol:* #{symbol_safe}
 *Market Bias:* {data['direction']} (Institutional)
 *TF:* {data['entry_tf']} | {data['session']} Session
 
@@ -78,7 +82,7 @@ _Total Vol: {sum(l['lots'] for l in data['layers']):.2f}_
 • {data['sl']:.5f} (below sweep)
 
 *Liquidity Event:*
-• {data['liquidity_event'].replace('_', '\\_')}
+• {event_safe}
 
 🧠 *AI Market Analysis:*
 • {data['ai_logic']}

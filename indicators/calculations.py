@@ -1,5 +1,5 @@
 import pandas as pd
-import pandas_ta as ta
+import pandas_ta_classic as ta
 from config.config import (
     EMA_FAST, EMA_SLOW, RSI_PERIOD, ATR_PERIOD, ATR_AVG_PERIOD, 
     EMA_TREND, ADR_PERIOD, ASIAN_SESSION_START, ASIAN_SESSION_END,

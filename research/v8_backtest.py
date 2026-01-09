@@ -96,7 +96,9 @@ async def run_v8_backtest(days=30):
             if state_h4.empty: continue
             
             # 1. Trend (H1)
-            h1_trend = "BULLISH" if latest_h1['close'] > latest_h1[f'ema_{EMA_TREND}'] else "BEARISH"
+            trend_ema = latest_h1[f'ema_{EMA_TREND}']
+            if pd.isna(trend_ema): continue
+            h1_trend = "BULLISH" if latest_h1['close'] > trend_ema else "BEARISH"
             
             # 2. M15 Sweep (Liquidity)
             # Adaptive lookback simulation (simplified for backtest)
