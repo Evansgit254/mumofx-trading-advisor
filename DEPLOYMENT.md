@@ -47,8 +47,8 @@ sudo apt install -y docker-compose
 
 Clone your project from GitHub:
 ```bash
-git clone https://github.com/your-repo/TradingExpert.git
-cd TradingExpert
+git clone https://github.com/Evansgit254/mumofx-trading-advisor.git
+cd mumofx-trading-advisor
 ```
 
 ## Step 3: Configure Environment
