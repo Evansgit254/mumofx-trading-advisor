@@ -108,7 +108,7 @@ async def main():
             
             tasks = []
             for symbol, data in market_data.items():
-                if symbol == 'DXY':
+                if symbol in ['DXY', '^TNX']:
                     continue
                 
                 # Deduplication (only for local continuous mode)
