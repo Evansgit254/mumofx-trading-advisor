@@ -75,8 +75,26 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for full server setup instructions.
 
 ## Performance
 - **30-Day Verification**: +13.0R (Pruned Portfolio)
-- **Win Rate**: ~65% (on A+ setups)
+- **Win Rate**: ~41% (High R:R focus)
 - **Expectancy**: Positive
+
+## System Trade-offs & Limitations
+
+### 1. Low Win Rate, High R:R
+The system is designed for **expectancy**, not accuracy. With a ~41% win rate, you will experience losing streaks. The profitability comes from the >1:2.5 Risk:Reward ratio.
+- **Trade-off**: Requires psychological discipline to endure drawdowns.
+
+### 2. Low Frequency (Sniper Approach)
+By enforcing a strict **8.0/10 confidence threshold**, the system passes on many "good" trades to wait for "great" ones.
+- **Trade-off**: You may see days with **0 trades**. Use this time to study, not force signals.
+
+### 3. Execution Dependency
+The logic relies on precise M5 candle closures.
+- **Limitation**: Highly sensitive to data feed latency and spread. Not suitable for high-spread brokers or slow VPS environments.
+
+### 4. Complexity vs. Robustness
+The multi-layered validation (AI, Correlations, Trend, Structure) reduces false positives but increases system complexity.
+- **Limitation**: A failure in one component (e.g., Gemini API outage) can halt the entire pipeline.
 
 ## Disclaimer
 This software is for educational and research purposes only. Algorithmic trading involves significant risk of capital loss.

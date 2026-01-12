@@ -46,7 +46,13 @@ async def process_symbol(symbol: str, data: dict, news_events: list, ai_analyst:
     m15_df = IndicatorCalculator.add_indicators(data['m15'], "m15")
     m5_df = IndicatorCalculator.add_indicators(data['m5'], "m5")
     
-    updated_data = {'h1': h1_df, 'm15': m15_df, 'm5': m5_df, 'h4': data['h4']}
+    updated_data = {
+        'h1': h1_df, 
+        'm15': m15_df, 
+        'm5': m5_df, 
+        'h4': data.get('h4'),
+        'd1': data.get('d1')
+    }
     
     # V15.0 Performance: Parallelize strategy analysis per symbol
     tasks = [strategy.analyze(symbol, updated_data, news_events, data_batch) for strategy in strategies]

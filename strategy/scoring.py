@@ -13,6 +13,20 @@ class ScoringEngine:
         elif details.get('macro_aligned') == False:
             score -= 2.0 # Conflicting macro is a major penalty
             
+        # 0.1 Phase 6: Daily Bias Alignment
+        daily_bias = details.get('daily_bias', 'NEUTRAL')
+        daily_strength = details.get('daily_strength', 'WEAK')
+        direction = details.get('direction', '')
+        
+        if daily_strength == "STRONG":
+            if daily_bias == direction:
+                score += 2.0 # Major bonus for riding Daily Expansion
+            elif daily_bias != "NEUTRAL":
+                score -= 3.0 # Severe penalty for fighting Strong Daily Trend
+        elif daily_bias == direction:
+            score += 0.5 # Tie-breaker bonus
+
+            
         # 1. Bias alignment (Narrative Alignment)
         if details.get('h1_aligned'):
             score += 3.0 # Increase weight for H1 Narrative

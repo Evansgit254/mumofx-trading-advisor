@@ -114,6 +114,13 @@ class DataFetcher:
         
         tasks.append(DataFetcher.fetch_data_async(TNX_SYMBOL, "1h", period="10d"))
         task_info.append(('^TNX', 'h1'))
+        
+        # Macro Daily (D1) for Bias
+        tasks.append(DataFetcher.fetch_data_async(DXY_SYMBOL, "1d", period="3mo"))
+        task_info.append(('DXY', 'd1'))
+        
+        tasks.append(DataFetcher.fetch_data_async(TNX_SYMBOL, "1d", period="3mo"))
+        task_info.append(('^TNX', 'd1'))
 
         for symbol in symbols:
             # Narrative (1H)
@@ -128,6 +135,9 @@ class DataFetcher:
             # Institutional (4H)
             tasks.append(DataFetcher.fetch_data_async(symbol, INSTITUTIONAL_TF, period="3mo"))
             task_info.append((symbol, 'h4'))
+            # Daily Bias (D1)
+            tasks.append(DataFetcher.fetch_data_async(symbol, "1d", period="6mo"))
+            task_info.append((symbol, 'd1'))
 
         # 2. Execute Tasks Concurrently
         fetched_dfs = await asyncio.gather(*tasks)
@@ -138,11 +148,13 @@ class DataFetcher:
                 continue
             
             if symbol == 'DXY':
-                results['DXY'] = IndicatorCalculator.add_indicators(df, "h1")
+                key = 'DXY' if tf == 'h1' else f'DXY_{tf}'
+                results[key] = IndicatorCalculator.add_indicators(df, tf)
                 continue
                 
             if symbol == '^TNX':
-                results['^TNX'] = IndicatorCalculator.add_indicators(df, "h1")
+                key = '^TNX' if tf == 'h1' else f'^TNX_{tf}'
+                results[key] = IndicatorCalculator.add_indicators(df, tf)
                 continue
 
             if symbol not in results:
@@ -159,7 +171,8 @@ class DataFetcher:
             
         for symbol in symbols:
             s_data = results.get(symbol, {})
-            if 'h1' in s_data and 'm15' in s_data and 'm5' in s_data and 'h4' in s_data:
+            # Ensure d1 is also present
+            if 'h1' in s_data and 'm15' in s_data and 'm5' in s_data and 'h4' in s_data and 'd1' in s_data:
                 final_results[symbol] = s_data
                 
         return final_results

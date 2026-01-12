@@ -57,13 +57,15 @@ async def run_v8_backtest(days=30):
         h4 = DataFetcher.fetch_range(symbol, "4h", start=start_date, end=end_date)
         m15 = DataFetcher.fetch_range(symbol, "15m", start=start_date, end=end_date)
         m5 = DataFetcher.fetch_range(symbol, "5m", start=start_date, end=end_date)
+        d1 = DataFetcher.fetch_range(symbol, "1d", start=start_date, end=end_date)
         
-        if all(df is not None and not df.empty for df in [h1, h4, m15, m5]):
+        if all(df is not None and not df.empty for df in [h1, h4, m15, m5, d1]):
             all_data[symbol] = {
                 'h1': IndicatorCalculator.add_indicators(h1, "h1"),
                 'h4': IndicatorCalculator.add_indicators(h4, "h4"),
                 'm15': IndicatorCalculator.add_indicators(m15, "15m"),
-                'm5': IndicatorCalculator.add_indicators(m5, "5m")
+                'm5': IndicatorCalculator.add_indicators(m5, "5m"),
+                'd1': IndicatorCalculator.add_indicators(d1, "d1")
             }
             valid_symbols.append(symbol)
     
@@ -112,12 +114,16 @@ async def run_v8_backtest(days=30):
             
             h4_df_full = all_data[symbol]['h4']
             h4_idx = h4_df_full.index.get_indexer([t], method='pad')[0]
+            
+            d1_df_full = all_data[symbol]['d1']
+            d1_idx = d1_df_full.index.get_indexer([t], method='pad')[0]
 
             # Fast Views (iloc slicing returns views, not copies in many cases)
             state_m5 = m5_df_full.iloc[:m5_idx+1]
             state_m15 = m15_df_full.iloc[:m15_idx+1]
             state_h1 = h1_df_full.iloc[:h1_idx+1]
             state_h4 = h4_df_full.iloc[:h4_idx+1]
+            state_d1 = d1_df_full.iloc[:d1_idx+1]
             
             latest_m5 = m5_df_full.iloc[m5_idx]
             latest_m15 = m15_df_full.iloc[m15_idx]
@@ -129,7 +135,7 @@ async def run_v8_backtest(days=30):
             for strategy in strategies:
                 try:
                     signal = await strategy.analyze(symbol, {
-                        'h1': state_h1, 'h4': state_h4, 'm15': state_m15, 'm5': state_m5
+                        'h1': state_h1, 'h4': state_h4, 'm15': state_m15, 'm5': state_m5, 'd1': state_d1
                     }, [], market_context) 
                     
                     if not signal: continue

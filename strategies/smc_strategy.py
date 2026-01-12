@@ -21,6 +21,7 @@ from filters.news_filter import NewsFilter
 from filters.risk_manager import RiskManager
 from filters.macro_filter import MacroFilter
 from filters.ai_grader import AIGrader
+from filters.daily_bias import DailyBias
 from audit.optimizer import AutoOptimizer
 
 class SMCStrategy(BaseStrategy):
@@ -40,6 +41,7 @@ class SMCStrategy(BaseStrategy):
             m15_df = data.get('m15')
             m5_df = data.get('m5')
             h4_df = data.get('h4')
+            d1_df = data.get('d1')
             
             if h1_df is None or m15_df is None or m5_df is None: return None
             
@@ -48,8 +50,15 @@ class SMCStrategy(BaseStrategy):
             # --- V14.0 Performance: Read pre-calculated regime ---
             regime = m15_df.iloc[-1].get('regime', 'RANGING')
             
+            # Phase 6: Daily Bias Analysis (Chop Override)
+            daily_analysis = DailyBias.analyze(d1_df) if d1_df is not None else {'bias': 'NEUTRAL', 'strength': 'WEAK'}
+            
             # Gold Exception: Institutional sweeps often happen during "Choppy" consolidation
-            if regime == "CHOPPY" and not is_gold:
+            # Daily Bias Override: Allow trading in Chop if Daily Trend is STRONG
+            is_choppy = regime == "CHOPPY"
+            daily_override = daily_analysis['strength'] == "STRONG"
+            
+            if is_choppy and not is_gold and not daily_override:
                 return None
             
             # Higher Timeframe Trend (Narrative)
@@ -240,7 +249,9 @@ class SMCStrategy(BaseStrategy):
                 'crt_bonus': crt_validation.get('score_bonus', 0) if crt_validation else 0,
                 'crt_phase': crt_validation.get('phase', '') if crt_validation else '',
                 'symbol': symbol,
-                'direction': direction
+                'direction': direction,
+                'daily_bias': daily_analysis['bias'],
+                'daily_strength': daily_analysis['strength']
             }
             
             confidence = ScoringEngine.calculate_score(score_details)
