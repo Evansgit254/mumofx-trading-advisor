@@ -118,5 +118,4 @@ class BreakoutStrategy(BaseStrategy):
                 'session': f"Active {regime} Breakout"
             }
         except Exception as e:
-            # print(f"🔥 Breakout CRASH [{symbol}]: {e}")
             return None

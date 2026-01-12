@@ -2,7 +2,9 @@ import asyncio
 import logging
 import joblib
 import os
-from config.config import SYMBOLS
+import sys
+
+from config.config import SYMBOLS, MIN_CONFIDENCE_SCORE, GOLD_CONFIDENCE_THRESHOLD
 from data.fetcher import DataFetcher
 from indicators.calculations import IndicatorCalculator
 from data.news_fetcher import NewsFetcher
@@ -15,15 +17,6 @@ from audit.performance_analyzer import PerformanceAnalyzer
 from strategies.smc_strategy import SMCStrategy
 from strategies.breakout_strategy import BreakoutStrategy
 from strategies.price_action_strategy import PriceActionStrategy
-from tools.tv_renderer import TVChartRenderer
-from audit.journal import SignalJournal
-from audit.performance_analyzer import PerformanceAnalyzer
-from strategies.smc_strategy import SMCStrategy
-from strategies.breakout_strategy import BreakoutStrategy
-from strategies.price_action_strategy import PriceActionStrategy
-
-import joblib
-import os
 
 # Load ML Model
 ML_MODEL = None
@@ -31,10 +24,14 @@ if os.path.exists("training/win_prob_model.joblib"):
     ML_MODEL = joblib.load("training/win_prob_model.joblib")
 
 # Setup Logging
+# Ensure logs directory exists
+os.makedirs("logs", exist_ok=True)
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
+        logging.FileHandler("logs/trading.log"),
         logging.StreamHandler()
     ]
 )
@@ -68,7 +65,11 @@ async def process_symbol(symbol: str, data: dict, news_events: list, ai_analyst:
             multiplier = PerformanceAnalyzer.get_strategy_multiplier(strategies[i].get_id())
             result['confidence'] = round(result['confidence'] * multiplier, 1)
             result['pair'] = result.get('pair', symbol)
-            signals.append(result)
+            
+            # Filter by Confidence Threshold
+            threshold = GOLD_CONFIDENCE_THRESHOLD if symbol == "GC=F" else MIN_CONFIDENCE_SCORE
+            if result['confidence'] >= threshold:
+                signals.append(result)
             
     return signals
 

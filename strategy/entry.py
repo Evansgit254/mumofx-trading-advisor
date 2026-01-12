@@ -70,18 +70,35 @@ class EntryLogic:
         
         from config.config import BE_TRIGGER_ATR, PARTIAL_TP_ATR
         
+        # Gold Specialist: Tighter Targets (V15.1)
+        is_gold = symbol and symbol == "GC=F"
+        
         if direction == "BUY":
             sl = sweep_level - (0.5 * atr)
-            tp0 = latest_price + (PARTIAL_TP_ATR * atr)
-            tp1 = latest_price + (1.0 * atr)
-            tp2 = latest_price + (tp2_mult * atr)
-            be_trigger = latest_price + (BE_TRIGGER_ATR * atr)
+            if is_gold:
+                # Gold: 20% tighter targets due to quick momentum fade
+                tp0 = latest_price + (0.4 * atr)  # Was 0.5 (PARTIAL_TP_ATR)
+                tp1 = latest_price + (0.8 * atr)  # Was 1.0
+                tp2 = latest_price + (1.2 * atr)  # Was tp2_mult (typically 1.5-2.0)
+                be_trigger = latest_price + (0.4 * atr)  # Faster BE lock
+            else:
+                tp0 = latest_price + (PARTIAL_TP_ATR * atr)
+                tp1 = latest_price + (1.0 * atr)
+                tp2 = latest_price + (tp2_mult * atr)
+                be_trigger = latest_price + (BE_TRIGGER_ATR * atr)
         else:
             sl = sweep_level + (0.5 * atr)
-            tp0 = latest_price - (PARTIAL_TP_ATR * atr)
-            tp1 = latest_price - (1.0 * atr)
-            tp2 = latest_price - (tp2_mult * atr)
-            be_trigger = latest_price - (BE_TRIGGER_ATR * atr)
+            if is_gold:
+                # Gold: 20% tighter targets
+                tp0 = latest_price - (0.4 * atr)
+                tp1 = latest_price - (0.8 * atr)
+                tp2 = latest_price - (1.2 * atr)
+                be_trigger = latest_price - (0.4 * atr)
+            else:
+                tp0 = latest_price - (PARTIAL_TP_ATR * atr)
+                tp1 = latest_price - (1.0 * atr)
+                tp2 = latest_price - (tp2_mult * atr)
+                be_trigger = latest_price - (BE_TRIGGER_ATR * atr)
             
         levels = {
             'entry': latest_price,

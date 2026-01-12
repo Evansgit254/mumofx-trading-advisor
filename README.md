@@ -1,21 +1,24 @@
 # TradingExpert: SMC Scalp Signals (Alpha Core)
 
-**Version**: V15.0 (Alpha Core)  
-**Status**: Production Ready (Forest Hardened)
+**Version**: V15.1 (Golden Sniper)  
+**Status**: Production Ready (Institutional Grade)
 
 ## Overview
-TradingExpert is an institutional-grade algorithmic trading system designed for scalping major forex pairs (`EURUSD`, `GBPUSD`, `NZDUSD`) and Gold (`GC=F`). It leverages **Smart Money Concepts (SMC)**, **Quantum Displacement**, and **AI-Driven Validation** to identify high-probability setups with a hardcoded confidence threshold of **8.0**.
+TradingExpert is an institutional-grade algorithmic trading system designed for scalping major forex pairs (`EURUSD`, `GBPUSD`, `NZDUSD`) and Gold (`GC=F`). It leverages **Smart Money Concepts (SMC)**, **Daily Bias Correlation**, and **AI-Driven Validation** to identify high-probability setups with strict confidence thresholds (**8.0** for all pairs).
 
 ## Key Features
 
 ### 🧠 Alpha Core Logic
+- **Daily Bias Correlation**: Uses D1 trend strength to filter out choppy M5 trades and penalize counter-trend setups.
+- **Golden Sniper (V15.1)**: Specialized logic for Gold (`GC=F`) with DXY inverse correlation filters and tighter ATR-based profit targets (0.4x ATR TP0).
 - **Liquid Sweeps**: Detects liquidity grabs on M15/H1 timeframes.
 - **Quantum Displacement**: Validates momentum with significant body displacement.
 - **AI Sentinel**: Google Gemini 2.0 Flash integration for "Institutional Logical" grading.
 - **Vectorized Engine**: Full O(N) pre-calculation of FVG, BOS, and Asian Range indicators.
 
 ### 🛡️ Risk Management
-- **Hardcoded Threshold**: Signals require a minimum confidence score of **8.0/10**.
+- **High Conviction Filter**: Hardcoded **8.0/10** threshold for all signals to ensure institutional quality.
+- **Hardcoded FX Threshold**: Signals require a minimum confidence score of **8.0/10**.
 - **Dynamic Risk**: Session-based position sizing and ATR-based stop losses.
 - **News Filter**: Automated washing of high-impact news events (NFP, CPI, FOMC).
 - **Portfolio Pruning**: Optimized for a specific basket of high-expectancy assets.

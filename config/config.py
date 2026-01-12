@@ -67,7 +67,7 @@ NEWS_IMPACT_LEVELS = ["High", "Medium"] # Impact levels to track
 
 # SCORING (V15.0 Golden Threshold)
 MIN_CONFIDENCE_SCORE = 8.0
-GOLD_CONFIDENCE_THRESHOLD = 8.0 # Optimized from 30-day expectancy sweep
+GOLD_CONFIDENCE_THRESHOLD = 8.0  # V15.1 Balanced (Alpha Core)
 
 # RISK MANAGEMENT V3.2 ($50 Account Optimized)
 ACCOUNT_BALANCE = 50.0 # User's target starting balance

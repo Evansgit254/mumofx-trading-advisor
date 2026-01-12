@@ -126,7 +126,13 @@ class ScoringEngine:
         if abs(h1_dist) > 0.008: # > 0.8% from Mean
             score -= 2.0 # Penalty for "Overextended" moves
             
-        # 13. V6.2 Gold Specialist Bonus
+        # 13. Gold-DXY Inverse Correlation (V15.1)
+        if details.get('dxy_bonus'):
+            score += details['dxy_bonus']
+        if details.get('dxy_penalty'):
+            score += details['dxy_penalty']  # Already negative
+            
+        # 14. V6.2 Gold Specialist Bonus
         if symbol == "GC=F" and score >= 9.0:
             score += 1.0 # Reward elite Gold setups
             

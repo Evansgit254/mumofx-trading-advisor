@@ -2,6 +2,7 @@ from config.config import NEWS_WASH_ZONE, NEWS_IMPACT_LEVELS
 from filters.news_sentiment import NewsSentimentAnalyzer
 from datetime import datetime
 import pytz
+import logging
 import pandas as pd
 
 class NewsFilter:
@@ -48,7 +49,7 @@ class NewsFilter:
                         'bias': bias
                     })
             except Exception as e:
-                print(f"Error parsing news tool time: {e}")
+                logging.error(f"Error parsing news tool time: {e}")
                 continue
                 
         return active_events

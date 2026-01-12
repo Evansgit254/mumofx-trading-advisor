@@ -53,12 +53,12 @@ async def test_process_symbol():
     
     # Mock components used in process_symbol
     with patch("main.IndicatorCalculator.add_indicators", side_effect=lambda df, tf: df):
-        with patch("main.DisplacementAnalyzer.is_displaced", return_value=True):
-            with patch("main.EntryLogic.check_pullback", return_value={'entry_price': 1.1, 'ema_zone': 1.1, 'rsi_val': 50}):
+        with patch("strategy.displacement.DisplacementAnalyzer.is_displaced", return_value=True):
+            with patch("strategy.entry.EntryLogic.check_pullback", return_value={'entry_price': 1.1, 'ema_zone': 1.1, 'rsi_val': 50}):
                 with patch("main.IndicatorCalculator.calculate_poc", return_value=1.1):
-                    with patch("main.ScoringEngine.calculate_score", return_value=9.5):
-                        with patch("main.RiskManager.calculate_lot_size", return_value={'lots': 0.01, 'risk_cash': 1.0, 'risk_percent': 2.0, 'pips': 10, 'warning': ''}):
-                            with patch("main.RiskManager.calculate_layers", return_value=[]):
+                    with patch("strategy.scoring.ScoringEngine.calculate_score", return_value=9.5):
+                        with patch("filters.risk_manager.RiskManager.calculate_lot_size", return_value={'lots': 0.01, 'risk_cash': 1.0, 'risk_percent': 2.0, 'pips': 10, 'warning': ''}):
+                            with patch("filters.risk_manager.RiskManager.calculate_layers", return_value=[]):
                                 with patch("main.ML_MODEL") as mock_ml:
                                     mock_ml.predict_proba.return_value = [[0.1, 0.9]]
                                     
@@ -88,4 +88,3 @@ async def test_process_symbol():
                                                 signal = res[0]
                                                 assert signal['symbol'] == symbol
                                                 assert signal['confidence'] >= 9.0  # ScoringEngine returns 9.5
-

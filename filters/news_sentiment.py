@@ -1,3 +1,5 @@
+import logging
+
 class NewsSentimentAnalyzer:
     # Categories for standard economic impact interpretation
     # If "Actual > Forecast", it's BULLISH for the currency.
@@ -48,7 +50,7 @@ class NewsSentimentAnalyzer:
                     return "BEARISH"
 
         except Exception as e:
-            # print(f"Error analyzing sentiment for {title}: {e}")
+            logging.error(f"Error analyzing sentiment for {title}: {e}")
             pass
 
         return "NEUTRAL"

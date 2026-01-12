@@ -131,6 +131,4 @@ class PriceActionStrategy(BaseStrategy):
                 'session': f"Range {regime} Reversal"
             }
         except Exception as e:
-            # print(f"🔥 PriceAction CRASH [{symbol}]: {e}")
-            # traceback.print_exc()
             return None

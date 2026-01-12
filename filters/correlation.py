@@ -1,3 +1,5 @@
+import logging
+
 class CorrelationAnalyzer:
     CURRENCY_MAP = {
         "EURUSD": ("EUR", "USD"),
@@ -59,7 +61,7 @@ class CorrelationAnalyzer:
                 for curr, side in current_signal_exposure.items():
                     exposure[curr] = side
             else:
-                print(f"⚠️ [CORRELATION FILTER] Skipping {pair} {direction} due to conflict with existing exposure.")
+                logging.info(f"⚠️ [CORRELATION FILTER] Skipping {pair} {direction} due to conflict with existing exposure.")
 
         return final_signals
 

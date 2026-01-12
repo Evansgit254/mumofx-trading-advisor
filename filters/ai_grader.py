@@ -2,6 +2,7 @@ from ai.analyst import AIAnalyst
 import asyncio
 import json
 import os
+import logging
 
 class AIGrader:
     def __init__(self):
@@ -92,13 +93,13 @@ class AIGrader:
             score = float(result.get("score", 5.0))
             
             # V13.1: Log trap risk for audit
-            # trap_risk = result.get("trap_risk", "UNKNOWN")
-            # print(f"🤖 AI [{setup_data.get('symbol')}]: {score} | Trap Risk: {trap_risk} | {result.get('reason')}")
+            trap_risk = result.get("trap_risk", "UNKNOWN")
+            logging.info(f"🤖 AI [{setup_data.get('symbol')}]: {score} | Trap Risk: {trap_risk} | {result.get('reason')}")
             
             # V15.0: Update Cache
             self.cache[cache_key] = (now, score)
             
             return score
         except Exception as e:
-            # print(f"⚠️ AI Grader Failed: {e}")
+            logging.error(f"⚠️ AI Grader Failed: {e}")
             return 6.5 # Conservative fallback

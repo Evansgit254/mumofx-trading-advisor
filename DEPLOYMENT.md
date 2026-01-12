@@ -1,6 +1,6 @@
 # Deployment Guide: TradingExpert (Dockerized)
 
-This guide walks you through deploying the **TradingExpert V15.0** system on a remote Virtual Private Server (VPS) using Docker. This ensures the bot runs 24/7 with automatic restarts and reliable logging.
+This guide walks you through deploying the **TradingExpert V15.1 (Golden Sniper)** system on a remote Virtual Private Server (VPS) using Docker. This ensures the bot runs 24/7 with automatic restarts and reliable logging.
 
 ## Prerequisites
 

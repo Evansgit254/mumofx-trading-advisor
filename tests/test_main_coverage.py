@@ -34,7 +34,8 @@ def mock_data():
 async def test_news_rejection(mock_data):
     """Lines 120-121: News safety filter rejection"""
     with patch("main.IndicatorCalculator.add_indicators", side_effect=lambda df, tf: df):
-        with patch("main.NewsFilter.is_news_safe", return_value=False):
+        # NewsFilter is imported in strategies.smc_strategy
+        with patch("strategies.smc_strategy.NewsFilter.is_news_safe", return_value=False):
             from strategies.smc_strategy import SMCStrategy
             strategies = [SMCStrategy()]
             result = await process_symbol("X", mock_data, [], AsyncMock(), {}, strategies)
@@ -44,13 +45,14 @@ async def test_news_rejection(mock_data):
 async def test_adr_exhausted_true(mock_data):
     """Line 137: ADR exhausted branch"""
     with patch("main.IndicatorCalculator.add_indicators", side_effect=lambda df, tf: df):
-        with patch("main.IndicatorCalculator.calculate_adr", return_value=pd.Series(index=mock_data['h1'].index, data=0.01)):  # Small ADR
+        with patch("main.IndicatorCalculator.calculate_adr", return_value=pd.Series(index=mock_data['h1'].index, data=0.01)):
             with patch("main.IndicatorCalculator.calculate_asian_range", return_value=pd.DataFrame(index=mock_data['m15'].index, data={'asian_high': 0, 'asian_low': 0})):
-                with patch("main.ScoringEngine.calculate_score", return_value=10.0):
+                # Patch dependencies inside SMCStrategy
+                with patch("strategies.smc_strategy.ScoringEngine.calculate_score", return_value=10.0):
                     with patch("main.MIN_CONFIDENCE_SCORE", 0):
-                        with patch("main.EntryLogic.calculate_levels", return_value={'sl': 1.0, 'tp0': 1.2, 'tp1': 1.3, 'tp2': 1.4}):
-                            with patch("main.RiskManager.calculate_lot_size", return_value={'lots': 0.01, 'risk_cash': 1.0, 'risk_percent': 1.0, 'pips': 10, 'warning': ''}):
-                                with patch("main.RiskManager.calculate_layers", return_value=[]):
+                        with patch("strategies.smc_strategy.EntryLogic.calculate_levels", return_value={'sl': 1.0, 'tp0': 1.2, 'tp1': 1.3, 'tp2': 1.4}):
+                            with patch("strategies.smc_strategy.RiskManager.calculate_lot_size", return_value={'lots': 0.01, 'risk_cash': 1.0, 'risk_percent': 1.0, 'pips': 10, 'warning': ''}):
+                                with patch("strategies.smc_strategy.RiskManager.calculate_layers", return_value=[]):
                                     # Bullish H1 Trend
                                     mock_data['h1'].iloc[-1, mock_data['h1'].columns.get_loc('close')] = 1.1
                                     mock_data['h1'].iloc[-1, mock_data['h1'].columns.get_loc('ema_100')] = 1.0
@@ -79,11 +81,11 @@ async def test_asian_sweep_buy(mock_data):
     with patch("main.IndicatorCalculator.add_indicators", side_effect=lambda df, tf: df):
         with patch("main.IndicatorCalculator.calculate_adr", return_value=1.0):
             with patch("main.IndicatorCalculator.calculate_asian_range", return_value=pd.DataFrame(index=mock_data['m15'].index, data={'asian_high': 1.1, 'asian_low': 1.0})):
-                with patch("main.ScoringEngine.calculate_score", return_value=10.0):
+                with patch("strategies.smc_strategy.ScoringEngine.calculate_score", return_value=10.0):
                     with patch("main.MIN_CONFIDENCE_SCORE", 0):
-                        with patch("main.EntryLogic.calculate_levels", return_value={'sl': 1.0, 'tp0': 1.2, 'tp1': 1.3, 'tp2': 1.4}):
-                            with patch("main.RiskManager.calculate_lot_size", return_value={'lots': 0.01, 'risk_cash': 1.0, 'risk_percent': 1.0, 'pips': 10, 'warning': ''}):
-                                with patch("main.RiskManager.calculate_layers", return_value=[]):
+                        with patch("strategies.smc_strategy.EntryLogic.calculate_levels", return_value={'sl': 1.0, 'tp0': 1.2, 'tp1': 1.3, 'tp2': 1.4}):
+                            with patch("strategies.smc_strategy.RiskManager.calculate_lot_size", return_value={'lots': 0.01, 'risk_cash': 1.0, 'risk_percent': 1.0, 'pips': 10, 'warning': ''}):
+                                with patch("strategies.smc_strategy.RiskManager.calculate_layers", return_value=[]):
                                     # Bullish H1 Trend
                                     mock_data['h1'].iloc[-1, mock_data['h1'].columns.get_loc('close')] = 1.1
                                     mock_data['h1'].iloc[-1, mock_data['h1'].columns.get_loc('ema_100')] = 1.0
@@ -114,11 +116,11 @@ async def test_asian_sweep_sell(mock_data):
     with patch("main.IndicatorCalculator.add_indicators", side_effect=lambda df, tf: df):
         with patch("main.IndicatorCalculator.calculate_adr", return_value=1.0):
             with patch("main.IndicatorCalculator.calculate_asian_range", return_value=pd.DataFrame(index=mock_data['m15'].index, data={'asian_high': 1.1, 'asian_low': 1.0})):
-                with patch("main.ScoringEngine.calculate_score", return_value=10.0):
+                with patch("strategies.smc_strategy.ScoringEngine.calculate_score", return_value=10.0):
                     with patch("main.MIN_CONFIDENCE_SCORE", 0):
-                        with patch("main.EntryLogic.calculate_levels", return_value={'sl': 1.0, 'tp0': 1.2, 'tp1': 1.3, 'tp2': 1.4}):
-                            with patch("main.RiskManager.calculate_lot_size", return_value={'lots': 0.01, 'risk_cash': 1.0, 'risk_percent': 1.0, 'pips': 10, 'warning': ''}):
-                                with patch("main.RiskManager.calculate_layers", return_value=[]):
+                        with patch("strategies.smc_strategy.EntryLogic.calculate_levels", return_value={'sl': 1.0, 'tp0': 1.2, 'tp1': 1.3, 'tp2': 1.4}):
+                            with patch("strategies.smc_strategy.RiskManager.calculate_lot_size", return_value={'lots': 0.01, 'risk_cash': 1.0, 'risk_percent': 1.0, 'pips': 10, 'warning': ''}):
+                                with patch("strategies.smc_strategy.RiskManager.calculate_layers", return_value=[]):
                                     # Bearish H1
                                     mock_data['h1'].iloc[-1, mock_data['h1'].columns.get_loc('close')] = 0.9
                                     mock_data['h1'].iloc[-1, mock_data['h1'].columns.get_loc('ema_100')] = 1.0
@@ -148,7 +150,7 @@ async def test_ai_rejection(mock_data):
     """Lines 201-202: AI validation rejection"""
     with patch("main.IndicatorCalculator.add_indicators", side_effect=lambda df, tf: df):
         with patch("main.IndicatorCalculator.calculate_adr", return_value=1.0):
-            with patch("main.ScoringEngine.calculate_score", return_value=9.5):
+            with patch("strategies.smc_strategy.ScoringEngine.calculate_score", return_value=9.5):
                 ai_mock = AsyncMock()
                 ai_mock.validate_signal.return_value = {'valid': False, 'institutional_logic': 'Rejected'}
                 from strategies.smc_strategy import SMCStrategy
@@ -161,11 +163,11 @@ async def test_dxy_sell_confluence(mock_data):
     """Line 236: DXY SELL+BULLISH confluence"""
     with patch("main.IndicatorCalculator.add_indicators", side_effect=lambda df, tf: df):
         with patch("main.IndicatorCalculator.calculate_adr", return_value=1.0):
-            with patch("main.ScoringEngine.calculate_score", return_value=10.0):
+            with patch("strategies.smc_strategy.ScoringEngine.calculate_score", return_value=10.0):
                 with patch("main.MIN_CONFIDENCE_SCORE", 0):
-                    with patch("main.EntryLogic.calculate_levels", return_value={'sl': 1.0, 'tp0': 1.2, 'tp1': 1.3, 'tp2': 1.4}):
-                        with patch("main.RiskManager.calculate_lot_size", return_value={'lots': 0.01, 'risk_cash': 1.0, 'risk_percent': 1.0, 'pips': 10, 'warning': ''}):
-                            with patch("main.RiskManager.calculate_layers", return_value=[]):
+                    with patch("strategies.smc_strategy.EntryLogic.calculate_levels", return_value={'sl': 1.0, 'tp0': 1.2, 'tp1': 1.3, 'tp2': 1.4}):
+                        with patch("strategies.smc_strategy.RiskManager.calculate_lot_size", return_value={'lots': 0.01, 'risk_cash': 1.0, 'risk_percent': 1.0, 'pips': 10, 'warning': ''}):
+                            with patch("strategies.smc_strategy.RiskManager.calculate_layers", return_value=[]):
                                 dxy_df = pd.DataFrame({'close': [101], 'ema_100': [100]}, index=[pd.Timestamp.now(tz="UTC")])
                                 data_batch = {'GC=F': mock_data, 'DXY': dxy_df}
                                 
@@ -182,24 +184,30 @@ async def test_dxy_sell_confluence(mock_data):
                                 from strategies.smc_strategy import SMCStrategy
                                 mock_signal = {'symbol': 'GC=F', 'direction': 'SELL', 'confidence': 10.0, 'confluence': 'DXY strength'}
                                 with patch.object(SMCStrategy, 'analyze', new_callable=AsyncMock, return_value=mock_signal):
-                                    strategies = [SMCStrategy()]
-                                    result = await process_symbol("GC=F", mock_data, [], AsyncMock(), data_batch, strategies)
-                                    assert result is not None
-                                    assert isinstance(result, list)
-                                    assert len(result) > 0
-                                    signal = result[0]
-                                    assert "strength" in signal['confluence']
+                                    # Patch PerformanceAnalyzer.get_strategy_multiplier to return 1.0
+                                    with patch("main.PerformanceAnalyzer.get_strategy_multiplier", return_value=1.0):
+                                        strategies = [SMCStrategy()]
+                                        
+                                        # IMPORTANT: Pass d1 for Daily Bias logic
+                                        mock_data['d1'] = mock_data['h1'] # Dummy D1
+                                        
+                                        result = await process_symbol("GC=F", mock_data, [], AsyncMock(), data_batch, strategies)
+                                        assert result is not None
+                                        assert isinstance(result, list)
+                                        assert len(result) > 0
+                                        signal = result[0]
+                                        assert "strength" in signal['confluence']
 
 @pytest.mark.asyncio
 async def test_dxy_divergence(mock_data):
     """Line 238: DXY divergence"""
     with patch("main.IndicatorCalculator.add_indicators", side_effect=lambda df, tf: df):
         with patch("main.IndicatorCalculator.calculate_adr", return_value=1.0):
-            with patch("main.ScoringEngine.calculate_score", return_value=10.0):
+            with patch("strategies.smc_strategy.ScoringEngine.calculate_score", return_value=10.0):
                 with patch("main.MIN_CONFIDENCE_SCORE", 0):
-                    with patch("main.EntryLogic.calculate_levels", return_value={'sl': 1.0, 'tp0': 1.2, 'tp1': 1.3, 'tp2': 1.4}):
-                        with patch("main.RiskManager.calculate_lot_size", return_value={'lots': 0.01, 'risk_cash': 1.0, 'risk_percent': 1.0, 'pips': 10, 'warning': ''}):
-                            with patch("main.RiskManager.calculate_layers", return_value=[]):
+                    with patch("strategies.smc_strategy.EntryLogic.calculate_levels", return_value={'sl': 1.0, 'tp0': 1.2, 'tp1': 1.3, 'tp2': 1.4}):
+                        with patch("strategies.smc_strategy.RiskManager.calculate_lot_size", return_value={'lots': 0.01, 'risk_cash': 1.0, 'risk_percent': 1.0, 'pips': 10, 'warning': ''}):
+                            with patch("strategies.smc_strategy.RiskManager.calculate_layers", return_value=[]):
                                 # Bullish H1 Trend for Gold
                                 mock_data['h1'].iloc[-1, mock_data['h1'].columns.get_loc('close')] = 1.1
                                 mock_data['h1'].iloc[-1, mock_data['h1'].columns.get_loc('ema_100')] = 1.0
@@ -221,13 +229,19 @@ async def test_dxy_divergence(mock_data):
                                     from strategies.smc_strategy import SMCStrategy
                                     mock_signal = {'symbol': 'GC=F', 'direction': 'BUY', 'confidence': 10.0, 'confluence': 'Divergence'}
                                     with patch.object(SMCStrategy, 'analyze', new_callable=AsyncMock, return_value=mock_signal):
-                                        strategies = [SMCStrategy()]
-                                        result = await process_symbol("GC=F", mock_data, [], AsyncMock(), data_batch, strategies)
-                                        assert result is not None
-                                        assert isinstance(result, list)
-                                        assert len(result) > 0
-                                        signal = result[0]
-                                        assert "Divergence" in signal['confluence']
+                                        # Patch PerformanceAnalyzer.get_strategy_multiplier to return 1.0
+                                        with patch("main.PerformanceAnalyzer.get_strategy_multiplier", return_value=1.0):
+                                            strategies = [SMCStrategy()]
+                                            
+                                            # IMPORTANT: Pass d1 for Daily Bias logic
+                                            mock_data['d1'] = mock_data['h1'] # Dummy D1
+                                            
+                                            result = await process_symbol("GC=F", mock_data, [], AsyncMock(), data_batch, strategies)
+                                            assert result is not None
+                                            assert isinstance(result, list)
+                                            assert len(result) > 0
+                                            signal = result[0]
+                                            assert "Divergence" in signal['confluence']
 
 # ========== main() Loop Tests ==========
 
@@ -268,6 +282,7 @@ async def test_renderer_success():
     with patch("main.os.getenv", side_effect=lambda k, d=None: "true" if k == "GITHUB_ACTIONS" else d):
         with patch("main.DataFetcher.get_latest_data", return_value={'X': {'m5': pd.DataFrame({'close': [1.1]}, index=[pd.Timestamp.now()])}}):
             with patch("main.process_symbol", return_value=signal):
+                # Patch CorrelationAnalyzer in main (it is imported there)
                 with patch("main.CorrelationAnalyzer.filter_signals", return_value=[signal]):
                     mock_tel = AsyncMock()
                     mock_tel.format_signal.return_value = "msg"

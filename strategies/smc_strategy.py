@@ -126,9 +126,7 @@ class SMCStrategy(BaseStrategy):
             if not direction:
                 return None
 
-            if is_gold:
-                 # print(f"DEBUG_GOLD {price_time}: Direction Found {direction}")
-                 pass
+
                 
             h1_aligned = (direction == "BUY" and h1_trend == "BULLISH") or (direction == "SELL" and h1_trend == "BEARISH")
             
@@ -254,6 +252,28 @@ class SMCStrategy(BaseStrategy):
                 'daily_strength': daily_analysis['strength']
             }
             
+            # Gold-DXY Inverse Correlation Filter
+            if is_gold and market_context and 'DXY' in market_context:
+                dxy_df = market_context.get('DXY')
+                if dxy_df is not None and len(dxy_df) > 0:
+                    dxy_close = dxy_df.iloc[-1]['close']
+                    dxy_ema = dxy_df.iloc[-1].get('ema_100', dxy_close)
+                    dxy_trend = "BULLISH" if dxy_close > dxy_ema else "BEARISH"
+                    
+                    # Gold typically moves INVERSE to DXY
+                    divergence = (direction == "BUY" and dxy_trend == "BULLISH") or \
+                                 (direction == "SELL" and dxy_trend == "BEARISH")
+                    
+                    if divergence:
+                        score_details['confluence'] = f"⚠️ DXY Divergence ({dxy_trend})"
+                        score_details['dxy_penalty'] = -0.5 # V15.2: Relaxed from -2.0
+                    else:
+                        if direction == "BUY":
+                            score_details['confluence'] = "✅ DXY Weakness"
+                        else:
+                            score_details['confluence'] = "✅ DXY Strength"
+                        score_details['dxy_bonus'] = 1.5
+            
             confidence = ScoringEngine.calculate_score(score_details)
             
             # --- V13.0 AI Setup Grader (Neural Shield) ---
@@ -303,6 +323,4 @@ class SMCStrategy(BaseStrategy):
             return None
 
         except Exception as e:
-            # print(f"🔥 SMC CRASH [{symbol}]: {e}")
-            # traceback.print_exc()
             return None

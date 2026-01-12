@@ -217,7 +217,7 @@ async def test_integration_news_rejection():
                 mock_news.fetch_news.return_value = high_impact_news
                 mock_news_class.return_value = mock_news
                 
-                with patch("main.NewsFilter.is_news_safe", return_value=False):
+                with patch("filters.news_filter.NewsFilter.is_news_safe", return_value=False):
                     with patch("main.TelegramService") as mock_tel_class:
                         mock_tel = AsyncMock()
                         mock_tel_class.return_value = mock_tel
@@ -269,45 +269,46 @@ async def test_integration_multi_strategy_concurrency():
                         mock_rend = AsyncMock()
                         mock_rend_class.return_value = mock_rend
                         
-                        from strategies.smc_strategy import SMCStrategy
-                        from strategies.breakout_strategy import BreakoutStrategy
-                        from strategies.price_action_strategy import PriceActionStrategy
-                        
-                        smc_sig = {
-                            'strategy_id': 'smc_institutional', 
-                            'symbol': 'EURUSD=X', 
-                            'direction': 'BUY', 
-                            'confidence': 9.0,
-                            'win_prob': 0.9, # Higher win_prob
-                            'entry_price': 1.0510,
-                            'sl': 1.0490,
-                            'tp0': 1.0520,
-                            'tp1': 1.0530,
-                            'tp2': 1.0540,
-                            'session': 'London-NY',
-                            'pair': 'EURUSD=X'
-                        }
-                        breakout_sig = {
-                            'strategy_id': 'breakout_master', 
-                            'symbol': 'EURUSD=X', 
-                            'direction': 'BUY', 
-                            'confidence': 8.5,
-                            'win_prob': 0.8, # Lower win_prob
-                            'entry_price': 1.0510,
-                            'sl': 1.0490,
-                            'tp0': 1.0520,
-                            'tp1': 1.0530,
-                            'tp2': 1.0540,
-                            'session': 'London-NY',
-                            'pair': 'EURUSD=X'
-                        }
-                        
-                        with patch.object(SMCStrategy, 'analyze', new_callable=AsyncMock, return_value=smc_sig):
-                            with patch.object(BreakoutStrategy, 'analyze', new_callable=AsyncMock, return_value=breakout_sig):
-                                with patch.object(PriceActionStrategy, 'analyze', new_callable=AsyncMock, return_value=None):
-                                    
-                                    from main import main
-                                    await main()
+                        with patch("audit.performance_analyzer.PerformanceAnalyzer.get_strategy_multiplier", return_value=1.0):
+                            from strategies.smc_strategy import SMCStrategy
+                            from strategies.breakout_strategy import BreakoutStrategy
+                            from strategies.price_action_strategy import PriceActionStrategy
+                            
+                            smc_sig = {
+                                'strategy_id': 'smc_institutional', 
+                                'symbol': 'EURUSD=X', 
+                                'direction': 'BUY', 
+                                'confidence': 9.0,
+                                'win_prob': 0.9, # Higher win_prob
+                                'entry_price': 1.0510,
+                                'sl': 1.0490,
+                                'tp0': 1.0520,
+                                'tp1': 1.0530,
+                                'tp2': 1.0540,
+                                'session': 'London-NY',
+                                'pair': 'EURUSD=X'
+                            }
+                            breakout_sig = {
+                                'strategy_id': 'breakout_master', 
+                                'symbol': 'EURUSD=X', 
+                                'direction': 'BUY', 
+                                'confidence': 8.5,
+                                'win_prob': 0.8, # Lower win_prob
+                                'entry_price': 1.0510,
+                                'sl': 1.0490,
+                                'tp0': 1.0520,
+                                'tp1': 1.0530,
+                                'tp2': 1.0540,
+                                'session': 'London-NY',
+                                'pair': 'EURUSD=X'
+                            }
+                            
+                            with patch.object(SMCStrategy, 'analyze', new_callable=AsyncMock, return_value=smc_sig):
+                                with patch.object(BreakoutStrategy, 'analyze', new_callable=AsyncMock, return_value=breakout_sig):
+                                    with patch.object(PriceActionStrategy, 'analyze', new_callable=AsyncMock, return_value=None):
+                                        
+                                        from main import main
+                                        await main()
                                     
                                     # Verify that signals were processed. 
                                     assert mock_tel.format_signal.called
