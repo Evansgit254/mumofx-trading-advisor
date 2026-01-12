@@ -68,16 +68,20 @@ class EntryLogic:
         if opt_mult:
             tp2_mult = opt_mult
         
+        from config.config import BE_TRIGGER_ATR, PARTIAL_TP_ATR
+        
         if direction == "BUY":
             sl = sweep_level - (0.5 * atr)
-            tp0 = latest_price + (0.5 * atr)
+            tp0 = latest_price + (PARTIAL_TP_ATR * atr)
             tp1 = latest_price + (1.0 * atr)
             tp2 = latest_price + (tp2_mult * atr)
+            be_trigger = latest_price + (BE_TRIGGER_ATR * atr)
         else:
             sl = sweep_level + (0.5 * atr)
-            tp0 = latest_price - (0.5 * atr)
+            tp0 = latest_price - (PARTIAL_TP_ATR * atr)
             tp1 = latest_price - (1.0 * atr)
             tp2 = latest_price - (tp2_mult * atr)
+            be_trigger = latest_price - (BE_TRIGGER_ATR * atr)
             
         levels = {
             'entry': latest_price,
@@ -86,12 +90,7 @@ class EntryLogic:
             'tp1': tp1,
             'tp2': tp2,
             'tp2_mult': tp2_mult,
-            'tp_partial': None
+            'be_trigger': be_trigger
         }
-        
-        # Gold Specialist: Partial TP at 0.5 ATR (TP0)
-        # Using a marker or checking symbol in main.py is better, 
-        # but we'll include it in the levels dict for transparency.
-        levels['tp_partial'] = tp0
         
         return levels

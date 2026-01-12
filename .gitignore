@@ -1,14 +1,23 @@
+# Standard
 .venv/
 .env
 __pycache__/
 *.pyc
+.DS_Store
+
+# Data & Database
 outputs/
 logs/
 data/historical/
-*.png
+database/*.db
 fxblue_history.csv
+
+# Test & Coverage
 .coverage
 .pytest_cache/
 htmlcov/
-.DS_Store
-.venv_backtest
+coverage_html*/
+*.png
+
+# Backtest
+.venv_backtest/

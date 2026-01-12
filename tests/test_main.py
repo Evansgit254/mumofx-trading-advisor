@@ -65,9 +65,27 @@ async def test_process_symbol():
                                     ai_mock = MagicMock()
                                     ai_mock.validate_signal = AsyncMock(return_value={'valid': True, 'institutional_logic': 'Banks buying', 'score_adjustment': 0.1})
                                     
-                                    with patch("main.IndicatorCalculator.calculate_adr", return_value=100.0):
-                                        with patch("main.IndicatorCalculator.get_asian_range", return_value={'high': 1.11, 'low': 1.1}):
-                                            res = await process_symbol(symbol, data, [], ai_mock, data)
-                                            assert res is not None
-                                            assert res['symbol'] == symbol
-                                            assert res['confidence'] >= 9.0  # ScoringEngine returns 9.5
+                                    with patch("main.IndicatorCalculator.calculate_adr", return_value=pd.Series(index=data['h1'].index, data=100.0)):
+                                        with patch("main.IndicatorCalculator.calculate_asian_range", return_value=pd.DataFrame(index=data['m15'].index, data={'asian_high': 1.11, 'asian_low': 1.1})):
+                                            from strategies.smc_strategy import SMCStrategy
+                                            mock_signal = {
+                                                'symbol': symbol,
+                                                'direction': 'BUY',
+                                                'confidence': 9.5,
+                                                'entry_price': 1.1,
+                                                'sl': 1.0,
+                                                'tp0': 1.2,
+                                                'tp1': 1.3,
+                                                'tp2': 1.4
+                                            }
+                                            with patch.object(SMCStrategy, 'analyze', new_callable=AsyncMock, return_value=mock_signal):
+                                                with patch("main.PerformanceAnalyzer.get_strategy_multiplier", return_value=1.0):
+                                                    strategies = [SMCStrategy()]
+                                                    res = await process_symbol(symbol, data, [], ai_mock, data, strategies)
+                                                assert res is not None
+                                                assert isinstance(res, list)
+                                                assert len(res) > 0
+                                                signal = res[0]
+                                                assert signal['symbol'] == symbol
+                                                assert signal['confidence'] >= 9.0  # ScoringEngine returns 9.5
+

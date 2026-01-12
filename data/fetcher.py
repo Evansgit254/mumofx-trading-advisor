@@ -99,7 +99,7 @@ class DataFetcher:
         """
         Fetches multi-timeframe data for all symbols concurrently.
         """
-        from config.config import DXY_SYMBOL
+        from config.config import DXY_SYMBOL, TNX_SYMBOL
         import asyncio
         
         results = {}
@@ -108,9 +108,12 @@ class DataFetcher:
         tasks = []
         task_info = []
 
-        # DXY Narrative
+        # Macro Narrative
         tasks.append(DataFetcher.fetch_data_async(DXY_SYMBOL, "1h", period="10d"))
         task_info.append(('DXY', 'h1'))
+        
+        tasks.append(DataFetcher.fetch_data_async(TNX_SYMBOL, "1h", period="10d"))
+        task_info.append(('^TNX', 'h1'))
 
         for symbol in symbols:
             # Narrative (1H)
@@ -137,6 +140,10 @@ class DataFetcher:
             if symbol == 'DXY':
                 results['DXY'] = IndicatorCalculator.add_indicators(df, "h1")
                 continue
+                
+            if symbol == '^TNX':
+                results['^TNX'] = IndicatorCalculator.add_indicators(df, "h1")
+                continue
 
             if symbol not in results:
                 results[symbol] = {}
@@ -146,6 +153,9 @@ class DataFetcher:
         final_results = {}
         if 'DXY' in results:
             final_results['DXY'] = results['DXY']
+            
+        if '^TNX' in results:
+            final_results['^TNX'] = results['^TNX']
             
         for symbol in symbols:
             s_data = results.get(symbol, {})

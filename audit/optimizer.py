@@ -7,19 +7,23 @@ class AutoOptimizer:
     def __init__(self, db_path="database/signals.db"):
         self.db_path = db_path
 
-    def get_optimized_multipliers(self):
+    def get_optimized_multipliers(self, verbose=False):
         """
         Analyzes past trades to suggest better TP multipliers.
         Goal: If a symbol hits BE too often, suggest tightening/widening targets.
         """
-        if not os.path.exists(self.db_path):
-            return {}
-
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                # Get last 50 trades
-                query = "SELECT symbol, status FROM signals WHERE status IN ('WIN', 'LOSS', 'BE', 'WIN_PARTIAL') ORDER BY id DESC LIMIT 50"
-                df = pd.read_sql_query(query, conn)
+            df = pd.DataFrame()
+            if os.path.exists(self.db_path):
+                with sqlite3.connect(self.db_path) as conn:
+                    # Get last 50 trades
+                    query = "SELECT symbol, status FROM signals WHERE status IN ('WIN', 'LOSS', 'BE', 'WIN_PARTIAL', 'PARTIAL_LOSS') ORDER BY id DESC LIMIT 50"
+                    df = pd.read_sql_query(query, conn)
+            
+            # Fallback to backtest CSV for iterative research
+            if df.empty and os.path.exists("research/audit_results_v8.csv"):
+                df = pd.read_csv("research/audit_results_v8.csv")
+                if 'res' in df.columns: df = df.rename(columns={'res': 'status'})
                 
             if df.empty:
                 return {}
@@ -28,7 +32,7 @@ class AutoOptimizer:
             for symbol in df['symbol'].unique():
                 symbol_trades = df[df['symbol'] == symbol]
                 total = len(symbol_trades)
-                be_count = len(symbol_trades[symbol_trades['status'] == 'BE'])
+                be_count = len(symbol_trades[symbol_trades['status'].isin(['BE', 'PARTIAL_LOSS'])])
                 loss_count = len(symbol_trades[symbol_trades['status'] == 'LOSS'])
                 
                 be_rate = be_count / total if total > 0 else 0
@@ -42,10 +46,10 @@ class AutoOptimizer:
                 
                 if be_rate > 0.4:
                     mult = 1.2 # Tighten for quicker exits
-                    print(f"📉 [OPTIMIZER] Tightening {symbol} TP to {mult}x (High BE Rate: {be_rate*100:.1f}%)")
+                    if verbose: print(f"📉 [OPTIMIZER] Tightening {symbol} TP to {mult}x (High BE Rate: {be_rate*100:.1f}%)")
                 elif be_rate < 0.1 and total >= 5:
                     mult = 1.8 # Reward stable runners
-                    print(f"🚀 [OPTIMIZER] Expanding {symbol} TP to {mult}x (Low BE Rate: {be_rate*100:.1f}%)")
+                    if verbose: print(f"🚀 [OPTIMIZER] Expanding {symbol} TP to {mult}x (Low BE Rate: {be_rate*100:.1f}%)")
                     
                 multipliers[symbol] = mult
                 

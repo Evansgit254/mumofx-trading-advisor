@@ -5,12 +5,17 @@ from sklearn.metrics import accuracy_score, classification_report
 import joblib
 import os
 import sqlite3
+import logging
+
+# Setup Logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 def train_model():
-    print("🧠 Training Winning Probability Model (Hybrid Mode)...")
+    logger.info("🧠 Training Winning Probability Model (Hybrid Mode)...")
     
     if not os.path.exists("training/historical_data.csv"):
-        print("❌ Error: No training data found. Run data_collector.py first.")
+        logger.error("❌ Error: No training data found. Run data_collector.py first.")
         return
 
     df = pd.read_csv("training/historical_data.csv")
@@ -21,12 +26,12 @@ def train_model():
         # We only count features if we have them, for now we track categorical symbol bias
         df_live = pd.read_sql_query("SELECT symbol, result_pips, status FROM signals WHERE status != 'PENDING'", conn)
         if not df_live.empty:
-            print(f"📊 Integrating {len(df_live)} live signal results for performance weighting.")
+            logger.info(f"📊 Integrating {len(df_live)} live signal results for performance weighting.")
     except Exception as e:
-        print(f"ℹ️ Could not load live signals: {e}")
+        logger.warning(f"ℹ️ Could not load live signals: {e}")
     
     if len(df) < 50:
-        print(f"⚠️ Warning: Dataset too small ({len(df)} samples). Model may be unreliable.")
+        logger.warning(f"⚠️ Warning: Dataset too small ({len(df)} samples). Model may be unreliable.")
 
     # Features: RSI, Body Ratio, Normalized ATR, Displaced (Binary), H1 Trend (1/-1)
     X = df[['rsi', 'body_ratio', 'atr_norm', 'displaced', 'h1_trend']]
@@ -51,13 +56,13 @@ def train_model():
     y_pred = model.predict(X_test)
     acc = accuracy_score(y_test, y_pred)
     
-    print(f"✅ Model Trained! Accuracy: {acc:.2f}")
+    logger.info(f"✅ Model Trained! Accuracy: {acc:.2f}")
     print("\nReport:")
     print(classification_report(y_test, y_pred))
 
     # Save
     joblib.dump(model, "training/win_prob_model.joblib")
-    print("📁 Model saved to training/win_prob_model.joblib")
+    logger.info("📁 Model saved to training/win_prob_model.joblib")
 
 if __name__ == "__main__":
     train_model()

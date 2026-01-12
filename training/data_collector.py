@@ -7,16 +7,21 @@ from data.fetcher import DataFetcher
 from indicators.calculations import IndicatorCalculator
 from strategy.displacement import DisplacementAnalyzer
 from strategy.entry import EntryLogic
+import logging
+
+# Setup Logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 async def collect_training_data(days=50):
-    print(f"📊 Building training dataset for last {days} days...")
+    logger.info(f"📊 Building training dataset for last {days} days...")
     dataset = []
     
     start_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
     end_date = datetime.now().strftime("%Y-%m-%d")
     
     for symbol in SYMBOLS:
-        print(f"  Processing {symbol}...")
+        logger.info(f"  Processing {symbol}...")
         h1_df = DataFetcher.fetch_range(symbol, "1h", start=start_date, end=end_date)
         m15_df = DataFetcher.fetch_range(symbol, "15m", start=start_date, end=end_date)
         m5_df = DataFetcher.fetch_range(symbol, "5m", start=start_date, end=end_date)
@@ -92,7 +97,7 @@ async def collect_training_data(days=50):
 
     df_out = pd.DataFrame(dataset)
     df_out.to_csv("training/historical_data.csv", index=False)
-    print(f"✅ Training data saved! ({len(df_out)} samples)")
+    logger.info(f"✅ Training data saved! ({len(df_out)} samples)")
 
 if __name__ == "__main__":
     asyncio.run(collect_training_data(days=50))

@@ -67,32 +67,32 @@ def test_scoring_engine_gold():
         'h1_aligned': False,
         'symbol': 'GC=F'
     }
-    # V8.1: 1.5 (base) - 5.0 (H1) - 2.0 (No displacement) - 4.0 (Trap: no displaced/fvg) = -9.5
-    assert ScoringEngine.calculate_score(details) == -9.5
+    # V12.0: 1.5 (base) - 2.5 (H1) - 1.0 (No displacement) - 3.0 (Trap: no displaced/fvg) = -5.0
+    assert ScoringEngine.calculate_score(details) == -5.0
     
     details['h1_aligned'] = True
     details['asian_sweep'] = True
     details['asian_quality'] = False
-    # V8.1: 3.0 (base) - 1.5 (asian sweep) - 3.0 (gold asian) - 2.0 (no displacement) - 4.0 (trap) = -7.5
-    assert ScoringEngine.calculate_score(details) == -7.5
+    # V12.0: 3.0 (base) - 1.5 (asian sweep) - 3.0 (gold asian) - 1.0 (no displacement) - 3.0 (trap: both missing) = -5.5
+    assert ScoringEngine.calculate_score(details) == -5.5
 
 def test_scoring_engine_jpy_index():
     details = {'symbol': 'USDJPY', 'h1_aligned': True}
-    # 3.0 (base) + 1.0 (Alpha) - 2.0 (No displacement) = 2.0
-    assert ScoringEngine.calculate_score(details) == 2.0
+    # 3.0 (base) + 1.0 (Alpha) - 1.0 (No displacement) = 3.0
+    assert ScoringEngine.calculate_score(details) == 3.0
     
     details = {'symbol': '^IXIC', 'h1_aligned': True}
-    assert ScoringEngine.calculate_score(details) == 2.0
+    assert ScoringEngine.calculate_score(details) == 3.0
 
 def test_scoring_engine_slope_filters():
     details = {'direction': 'BUY', 'ema_slope': -0.1, 'h1_aligned': True}
-    # 3.0 (base) - 2.0 (Slope) - 2.0 (No displacement) = -1.0
-    assert ScoringEngine.calculate_score(details) == -1.0
+    # 3.0 (base) - 1.0 (No displacement) = 2.0 (No slope penalty in V12.0)
+    assert ScoringEngine.calculate_score(details) == 2.0
     
     details = {'direction': 'SELL', 'ema_slope': 0.1, 'h1_aligned': True}
-    assert ScoringEngine.calculate_score(details) == -1.0
+    assert ScoringEngine.calculate_score(details) == 2.0
 
 def test_scoring_engine_overextended():
     details = {'h1_dist': 0.01, 'h1_aligned': True}
-    # 3.0 (base) - 2.0 (Extension) - 2.0 (No displacement) = -1.0
-    assert ScoringEngine.calculate_score(details) == -1.0
+    # 3.0 (base) - 2.0 (Extension) - 1.0 (No displacement) = 0.0
+    assert ScoringEngine.calculate_score(details) == 0.0

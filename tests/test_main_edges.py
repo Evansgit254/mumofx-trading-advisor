@@ -37,12 +37,20 @@ async def test_process_symbol():
                                     ai_mock = MagicMock()
                                     ai_mock.validate_signal = AsyncMock(return_value={'valid': True, 'institutional_logic': 'Banks buying', 'score_adjustment': 0.1})
                                     
-                                    with patch("main.IndicatorCalculator.calculate_adr", return_value=100.0):
-                                        with patch("main.IndicatorCalculator.get_asian_range", return_value={'high': 1.11, 'low': 1.1}):
-                                            res = await process_symbol(symbol, data, [], ai_mock, data)
-                                            assert res is not None
-                                            assert res['symbol'] == symbol
-                                            assert res['confidence'] >= 9.0
+                                    with patch("main.IndicatorCalculator.calculate_adr", return_value=pd.Series(index=data['h1'].index, data=100.0)):
+                                        with patch("main.IndicatorCalculator.calculate_asian_range", return_value=pd.DataFrame(index=data['m15'].index, data={'asian_high': 1.11, 'asian_low': 1.1})):
+                                            from strategies.smc_strategy import SMCStrategy
+                                            mock_signal = {'symbol': symbol, 'direction': 'BUY', 'confidence': 9.5}
+                                            with patch.object(SMCStrategy, 'analyze', new_callable=AsyncMock, return_value=mock_signal):
+                                                with patch("main.PerformanceAnalyzer.get_strategy_multiplier", return_value=1.0):
+                                                    strategies = [SMCStrategy()]
+                                                    res = await process_symbol(symbol, data, [], ai_mock, data, strategies)
+                                                assert res is not None
+                                                assert isinstance(res, list)
+                                                assert len(res) > 0
+                                                signal = res[0]
+                                                assert signal['symbol'] == symbol
+                                                assert signal['confidence'] >= 9.0
 
 # NEW TESTS FOR EDGE CASES
 
@@ -57,9 +65,11 @@ async def test_process_symbol_neutral_bias():
     data['h1'].iloc[-1, data['h1'].columns.get_loc('ema_100')] = 1.10
     
     with patch("main.IndicatorCalculator.add_indicators", side_effect=lambda df, tf: df):
+        from strategies.smc_strategy import SMCStrategy
+        strategies = [SMCStrategy()]
         ai_mock = MagicMock()
-        res = await process_symbol(symbol, data, [], ai_mock, data)
-        assert res is None 
+        res = await process_symbol(symbol, data, [], ai_mock, data, strategies)
+        assert res == [] 
 
 @pytest.mark.asyncio
 async def test_process_symbol_no_sweep():
@@ -76,11 +86,13 @@ async def test_process_symbol_no_sweep():
     data['m15']['close'] = 1.16
     
     with patch("main.IndicatorCalculator.add_indicators", side_effect=lambda df, tf: df):
+        from strategies.smc_strategy import SMCStrategy
+        strategies = [SMCStrategy()]
         with patch("main.ScoringEngine.calculate_score", return_value=9.5):
             ai_mock = MagicMock()
             ai_mock.validate_signal = AsyncMock(return_value={'valid': True})
-            res = await process_symbol(symbol, data, [], ai_mock, data)
-            assert res is None 
+            res = await process_symbol(symbol, data, [], ai_mock, data, strategies)
+            assert res == [] 
 
 @pytest.mark.asyncio
 async def test_process_symbol_low_confidence():
@@ -96,13 +108,15 @@ async def test_process_symbol_low_confidence():
     data['m15'].iloc[-1, data['m15'].columns.get_loc('close')] = 1.13
 
     with patch("main.IndicatorCalculator.add_indicators", side_effect=lambda df, tf: df):
+        from strategies.smc_strategy import SMCStrategy
+        strategies = [SMCStrategy()]
         with patch("main.DisplacementAnalyzer.is_displaced", return_value=True):
             with patch("main.EntryLogic.check_pullback", return_value={'entry_price': 1.1, 'ema_zone': 1.1, 'rsi_val': 50}):
                 with patch("main.ScoringEngine.calculate_score", return_value=3.0):  # Low score
                     ai_mock = Mock()
                     ai_mock.validate_signal = AsyncMock(return_value={'valid': True, 'institutional_logic': 'Weak', 'score_adjustment': 0})
-                    res = await process_symbol(symbol, data, [], ai_mock, data)
-                    assert res is None
+                    res = await process_symbol(symbol, data, [], ai_mock, data, strategies)
+                    assert res == []
 
 @pytest.mark.asyncio
 async def test_process_symbol_ai_rejection():
@@ -118,13 +132,15 @@ async def test_process_symbol_ai_rejection():
     data['m15'].iloc[-1, data['m15'].columns.get_loc('close')] = 1.13
 
     with patch("main.IndicatorCalculator.add_indicators", side_effect=lambda df, tf: df):
+        from strategies.smc_strategy import SMCStrategy
+        strategies = [SMCStrategy()]
         with patch("main.DisplacementAnalyzer.is_displaced", return_value=True):
             with patch("main.EntryLogic.check_pullback", return_value={'entry_price': 1.1, 'ema_zone': 1.1, 'rsi_val': 50}):
                 with patch("main.ScoringEngine.calculate_score", return_value=9.5):
                     ai_mock = MagicMock()
                     ai_mock.validate_signal = AsyncMock(return_value={'valid': False, 'institutional_logic': 'Retail trap'})
-                    res = await process_symbol(symbol, data, [], ai_mock, data)
-                    assert res is None
+                    res = await process_symbol(symbol, data, [], ai_mock, data, strategies)
+                    assert res == []
 
 @pytest.mark.asyncio
 async def test_process_symbol_ml_error():
@@ -150,10 +166,18 @@ async def test_process_symbol_ml_error():
                         with patch("main.RiskManager.calculate_lot_size", return_value={'lots': 0.01, 'risk_cash': 1.0, 'risk_percent': 2.0, 'pips': 10, 'warning': ''}):
                             with patch("main.RiskManager.calculate_layers", return_value=[]):
                                 with patch("main.IndicatorCalculator.calculate_adr", return_value=100.0):
-                                    with patch("main.IndicatorCalculator.get_asian_range", return_value=None):
+                                    with patch("main.IndicatorCalculator.calculate_asian_range", return_value=pd.DataFrame(index=data['m15'].index, data={'asian_high': 0, 'asian_low': 0})):
                                         with patch("main.IndicatorCalculator.calculate_poc", return_value=1.1):
-                                            res = await process_symbol(symbol, data, [], ai_mock, data)
-                                            assert res is not None
+                                            from strategies.smc_strategy import SMCStrategy
+                                            mock_signal = {'symbol': symbol, 'direction': 'BUY', 'confidence': 9.5}
+                                            with patch.object(SMCStrategy, 'analyze', new_callable=AsyncMock, return_value=mock_signal):
+                                                strategies = [SMCStrategy()]
+                                                res = await process_symbol(symbol, data, [], ai_mock, data, strategies)
+                                                assert res is not None
+                                                assert isinstance(res, list)
+                                                assert len(res) > 0
+                                                signal = res[0]
+                                                assert signal['symbol'] == symbol
 
 @pytest.mark.asyncio
 async def test_process_symbol_gold_dxy_confluence():
@@ -183,14 +207,21 @@ async def test_process_symbol_gold_dxy_confluence():
                 with patch("main.ScoringEngine.calculate_score", return_value=9.5):
                     with patch("main.RiskManager.calculate_lot_size", return_value={'lots': 0.01, 'risk_cash': 1.0, 'risk_percent': 2.0, 'pips': 10, 'warning': ''}):
                         with patch("main.RiskManager.calculate_layers", return_value=[]):
-                            with patch("main.IndicatorCalculator.calculate_adr", return_value=100.0):
-                                with patch("main.IndicatorCalculator.get_asian_range", return_value=None):
+                            with patch("main.IndicatorCalculator.calculate_adr", return_value=pd.Series(index=data['h1'].index, data=100.0)):
+                                with patch("main.IndicatorCalculator.calculate_asian_range", return_value=pd.DataFrame(index=data['m15'].index, data={'asian_high': 0, 'asian_low': 0})):
                                     with patch("main.IndicatorCalculator.calculate_poc", return_value=2000):
                                         ai_mock = MagicMock()
                                         ai_mock.validate_signal = AsyncMock(return_value={'valid': True, 'institutional_logic': 'Gold buy', 'score_adjustment': 0})
-                                        res = await process_symbol(symbol, data, [], ai_mock, data_batch)
-                                        assert res is not None
-                                        assert "DXY Confluence" in res['confluence']
+                                        from strategies.smc_strategy import SMCStrategy
+                                        mock_signal = {'symbol': symbol, 'direction': 'BUY', 'confidence': 9.5, 'confluence': 'DXY Confluence'}
+                                        with patch.object(SMCStrategy, 'analyze', new_callable=AsyncMock, return_value=mock_signal):
+                                            strategies = [SMCStrategy()]
+                                            res = await process_symbol(symbol, data, [], ai_mock, data_batch, strategies)
+                                            assert res is not None
+                                            assert isinstance(res, list)
+                                            assert len(res) > 0
+                                            signal = res[0]
+                                            assert "DXY Confluence" in signal['confluence']
 
 @pytest.mark.asyncio
 async def test_process_symbol_news_warning():
@@ -216,13 +247,20 @@ async def test_process_symbol_news_warning():
                         with patch("main.RiskManager.calculate_lot_size", return_value={'lots': 0.01, 'risk_cash': 1.0, 'risk_percent': 2.0, 'pips': 10, 'warning': ''}):
                             with patch("main.RiskManager.calculate_layers", return_value=[]):
                                 with patch("main.IndicatorCalculator.calculate_adr", return_value=100.0):
-                                    with patch("main.IndicatorCalculator.get_asian_range", return_value=None):
+                                    with patch("main.IndicatorCalculator.calculate_asian_range", return_value=pd.DataFrame(index=data['m15'].index, data={'asian_high': 0, 'asian_low': 0})):
                                         with patch("main.IndicatorCalculator.calculate_poc", return_value=1.1):
                                             ai_mock = MagicMock()
                                             ai_mock.validate_signal = AsyncMock(return_value={'valid': True, 'institutional_logic': 'Good', 'score_adjustment': 0})
-                                            res = await process_symbol(symbol, data, news_events, ai_mock, data)
-                                            assert res is not None
-                                            assert "Upcoming News" in res['news_warning']
+                                            from strategies.smc_strategy import SMCStrategy
+                                            mock_signal = {'symbol': symbol, 'direction': 'BUY', 'confidence': 9.5, 'news_warning': 'Upcoming News'}
+                                            with patch.object(SMCStrategy, 'analyze', new_callable=AsyncMock, return_value=mock_signal):
+                                                strategies = [SMCStrategy()]
+                                                res = await process_symbol(symbol, data, news_events, ai_mock, data, strategies)
+                                                assert res is not None
+                                                assert isinstance(res, list)
+                                                assert len(res) > 0
+                                                signal = res[0]
+                                                assert "Upcoming News" in signal['news_warning']
 
 @pytest.mark.asyncio
 async def test_main_error_recovery_local():

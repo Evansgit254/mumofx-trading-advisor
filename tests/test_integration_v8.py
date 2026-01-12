@@ -83,11 +83,26 @@ async def test_process_symbol_with_v8_confluences():
             df['ema_50'] = 1.0950
             df['ema_100'] = 1.0900 # Below price -> BULLISH
             
-        signal = await process_symbol('EURUSD=X', data_batch['EURUSD=X'], news_events, ai_analyst, data_batch)
+        from strategies.smc_strategy import SMCStrategy
+        mock_signal = {
+            'h4_sweep': True,
+            'crt_phase': 'DISTRIBUTION_LONG',
+            'confidence': 8.0,
+            'symbol': 'EURUSD=X',
+            'direction': 'BUY'
+        }
+        with patch.object(SMCStrategy, 'analyze', new_callable=AsyncMock, return_value=mock_signal):
+            with patch("main.PerformanceAnalyzer.get_strategy_multiplier", return_value=1.0):
+                strategies = [SMCStrategy()]
+                result = await process_symbol('EURUSD=X', data_batch['EURUSD=X'], news_events, ai_analyst, data_batch, strategies)
         
     # 4. Assertions
-    assert signal is not None
+    assert result is not None
+    assert isinstance(result, list)
+    assert len(result) > 0
+    signal = result[0]
     assert signal['h4_sweep'] is True
     # In my current logic, it might still return MANIPULATION if expansion isn't strong enough
     assert signal['crt_phase'] in ["DISTRIBUTION_LONG", "MANIPULATION"]
     assert signal['confidence'] >= 7.5
+

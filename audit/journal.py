@@ -1,6 +1,7 @@
 import sqlite3
 import os
 from datetime import datetime
+import pandas as pd
 
 class SignalJournal:
     def __init__(self, db_path="database/signals.db"):
@@ -28,6 +29,11 @@ class SignalJournal:
                     res TEXT DEFAULT 'PENDING'
                 )
             """)
+            # V12.0 Migration: Ensure strategy_id exists
+            try:
+                conn.execute("ALTER TABLE signals ADD COLUMN strategy_id TEXT")
+            except sqlite3.OperationalError:
+                pass # Already exists
 
     def log_signal(self, signal_data):
         with sqlite3.connect(self.db_path) as conn:

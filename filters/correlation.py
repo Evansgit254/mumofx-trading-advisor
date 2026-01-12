@@ -27,7 +27,7 @@ class CorrelationAnalyzer:
         exposure = {} # TRACK CURRENCY EXPOSURE (e.g., {'USD': 'SHORT'})
 
         for signal in sorted_signals:
-            pair = signal['pair']
+            pair = signal.get('pair') or signal.get('symbol')
             direction = signal['direction']
             
             currencies = CorrelationAnalyzer.CURRENCY_MAP.get(pair)
@@ -71,7 +71,7 @@ class CorrelationAnalyzer:
         if len(signals) < 2:
             return ""
 
-        usd_exposure = [s for s in signals if "USD" in s['pair']]
+        usd_exposure = [s for s in signals if "USD" in (s.get('pair') or s.get('symbol', ''))]
         if len(usd_exposure) >= 2:
             directions = [s['direction'] for s in usd_exposure]
             # If buying EURUSD and GBPUSD -> USD Weakness

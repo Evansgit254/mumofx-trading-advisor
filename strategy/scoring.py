@@ -7,6 +7,12 @@ class ScoringEngine:
         """
         score = 0.0
         
+        # 0. Global Macro Alignment
+        if details.get('macro_aligned'):
+            score += 1.5
+        elif details.get('macro_aligned') == False:
+            score -= 2.0 # Conflicting macro is a major penalty
+            
         # 1. Bias alignment (Narrative Alignment)
         if details.get('h1_aligned'):
             score += 3.0 # Increase weight for H1 Narrative
@@ -24,8 +30,8 @@ class ScoringEngine:
         if details.get('displaced'):
             score += 2.0
         else:
-            # V8.1 AUDIT: 90% of losses had no displacement. Stricter momentum gate.
-            score -= 2.0
+            # V12.0: Loosened penalty to allow for institutional footprints with low momentum.
+            score -= 1.0
             
         # 3.1. 4H Level Confluence (Institutional Sweep)
         if details.get('h4_sweep'):
@@ -58,15 +64,15 @@ class ScoringEngine:
         # 0. Gold Specialist Protection 🥇
         symbol = details.get('symbol', '')
         if symbol == "GC=F":
-            # Mandatory H1 alignment for Gold
+            # Mandatory H1 alignment for Gold (Loosened penalty for V12.0)
             if not details.get('h1_aligned'):
-                score -= 5.0 
+                score -= 2.5 
             
             # V8.1 Audit: Gold is prone to traps. Penalize if both are missing.
             if not details.get('displaced') and not details.get('has_fvg'):
-                score -= 4.0 # Disqualify truly messy Gold setups
+                score -= 3.0 # Disqualify truly messy Gold setups
             elif not details.get('displaced') or not details.get('has_fvg'):
-                score -= 1.5 # Minor penalty if missing one confluence
+                score -= 1.0 # Minor penalty if missing one confluence
             
             # Stricter Asian Range for Gold (20 pips instead of 15)
             if details.get('asian_sweep') and not details.get('asian_quality'):
@@ -87,22 +93,19 @@ class ScoringEngine:
         if details.get('asian_sweep') and details.get('asian_quality'):
             score += 0.5
             
-        # 9. V5.2 Hyper-Quant: institutional Value (POC proximity)
-        # PENALTY: Consolidation Zone (POC) is high risk for reversals.
+        # 9. V12.0: Institutional Value (POC proximity)
+        # Research shows Volumetric confirmation is key.
         if details.get('at_value'):
-            score -= 3.0 
+            score += 1.5
             
-        # 10. V6.0 Anti-Trap: Alpha Symbol Bonus
+        # 10. V12.0: BOS Confirmation Bonus
+        if details.get('bos_confirmed'):
+            score += 3.0 # High weight for sequential confirmation
+            
+        # 11. V6.0 Anti-Trap: Alpha Symbol Bonus
         symbol = details.get('symbol', '')
         if 'JPY' in symbol or 'IXIC' in symbol or 'GSPC' in symbol:
             score += 1.0
-            
-        # 11. V6.0 Anti-Trap: EMA Velocity (Slope) Filter
-        # Penalize if trend slope is too steep against the reversal
-        slope = details.get('ema_slope', 0)
-        direction = details.get('direction', '')
-        if (direction == "BUY" and slope < -0.05) or (direction == "SELL" and slope > 0.05):
-            score -= 2.0 # Penalty for "Falling Knife" setups
             
         # 12. V6.1 Liquid Shield: Hyper-Extension Safety
         h1_dist = details.get('h1_dist', 0)

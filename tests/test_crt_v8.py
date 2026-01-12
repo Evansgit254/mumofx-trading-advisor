@@ -51,7 +51,7 @@ def test_detect_crt_phases_distribution_long():
     assert validation['valid'] is True
     assert validation['score_bonus'] == 1.0
 
-def test_get_h4_levels():
+def test_calculate_h4_levels():
     dates = pd.date_range(start="2024-01-01", periods=20, freq="4h")
     df = pd.DataFrame({
         'high': [1.1050] * 20,
@@ -59,6 +59,6 @@ def test_get_h4_levels():
         'close': [1.1000] * 20
     }, index=dates)
     
-    levels = IndicatorCalculator.get_h4_levels(df)
-    assert levels['prev_h4_high'] == 1.1050
-    assert levels['prev_h4_low'] == 1.0950
+    levels = IndicatorCalculator.calculate_h4_levels(df)
+    assert 'h4_high' in levels.columns
+    assert 'h4_low' in levels.columns

@@ -33,28 +33,27 @@ def test_add_indicators_empty():
 
 def test_get_market_structure(sample_df):
     result = IndicatorCalculator.get_market_structure(sample_df)
-    assert "hh" in result.columns
-    assert "ll" in result.columns
+    assert "fvg_bullish" in result.columns
+    assert "bos_buy" in result.columns
 
 def test_calculate_adr(sample_df):
-    # ADR expects H1 data usually, but we can test with our sample
     adr = IndicatorCalculator.calculate_adr(sample_df)
-    assert isinstance(adr, float)
-    assert adr > 0
+    assert isinstance(adr, pd.Series)
+    assert not adr.isna().all()
 
 def test_calculate_adr_empty():
-    assert IndicatorCalculator.calculate_adr(pd.DataFrame()) == 0.0
+    res = IndicatorCalculator.calculate_adr(pd.DataFrame())
+    assert res.empty
 
-def test_get_asian_range(sample_df):
+def test_calculate_asian_range(sample_df):
     # Ensure some data is in asian session (0-8 UTC)
-    result = IndicatorCalculator.get_asian_range(sample_df)
-    if result:
-        assert "high" in result
-        assert "low" in result
-        assert result["high"] >= result["low"]
+    result = IndicatorCalculator.calculate_asian_range(sample_df)
+    assert "asian_high" in result.columns
+    assert "asian_low" in result.columns
 
-def test_get_asian_range_empty():
-    assert IndicatorCalculator.get_asian_range(pd.DataFrame()) is None
+def test_calculate_asian_range_empty():
+    res = IndicatorCalculator.calculate_asian_range(pd.DataFrame())
+    assert res.empty
 
 def test_calculate_poc(sample_df):
     poc = IndicatorCalculator.calculate_poc(sample_df)

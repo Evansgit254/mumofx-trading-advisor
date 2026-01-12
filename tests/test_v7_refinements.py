@@ -68,7 +68,6 @@ def test_gold_partial_levels():
     # TP0 (Partial) should be Entry + 0.5 * ATR
     # Entry is 2000.0, ATR is 10.0 -> TP0 = 2005.0
     assert levels['tp0'] == 2005.0
-    assert levels['tp_partial'] == 2005.0
     
     # Test optimized multiplier integration
     levels_opt = EntryLogic.calculate_levels(df, "BUY", sweep_level, atr, opt_mult=1.2)

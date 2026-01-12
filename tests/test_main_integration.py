@@ -228,3 +228,94 @@ async def test_integration_news_rejection():
                         # Should not send any signals due to news
                         assert not mock_tel.send_signal.called
                         assert not mock_tel.send_chart.called
+@pytest.mark.asyncio
+async def test_integration_multi_strategy_concurrency():
+    """Integration test: Multiple strategies generating signals for the same symbol"""
+    base_time = pd.Timestamp.now(tz="UTC")
+    
+    dates = [base_time - timedelta(minutes=5*i) for i in range(100)]
+    dates.reverse()
+    df = pd.DataFrame({
+        'open': [1.05]*100, 'high': [1.1]*100, 'low': [1.04]*100, 'close': [1.05]*100,
+        'volume': [1000]*100, 'ema_20': [1.05]*100, 'ema_50': [1.05]*100, 'ema_100': [1.0]*100,
+        'rsi': [50]*100, 'atr': [0.01]*100, 'atr_avg': [0.01]*100
+    }, index=dates)
+    
+    market_data = {
+        'EURUSD=X': {'m5': df.copy(), 'm15': df.copy(), 'h1': df.copy(), 'h4': df.copy()}
+    }
+    
+    # Mocking different return values for different strategies
+    # SMC: returns Buy signal
+    # Breakout: returns Buy signal
+    # Price Action: returns None
+    
+    with patch("main.os.getenv", side_effect=lambda k, d=None: "true" if k == "GITHUB_ACTIONS" else d):
+        with patch("main.DataFetcher") as mock_fetcher_class:
+            mock_fetcher = AsyncMock()
+            mock_fetcher.get_latest_data.return_value = market_data
+            mock_fetcher_class.return_value = mock_fetcher
+            
+            with patch("main.NewsFetcher") as mock_news_class:
+                mock_news = MagicMock()
+                mock_news.fetch_news.return_value = []
+                mock_news_class.return_value = mock_news
+                
+                with patch("main.TelegramService") as mock_tel_class:
+                    mock_tel = AsyncMock()
+                    mock_tel_class.return_value = mock_tel
+                    
+                    with patch("main.TVChartRenderer") as mock_rend_class:
+                        mock_rend = AsyncMock()
+                        mock_rend_class.return_value = mock_rend
+                        
+                        from strategies.smc_strategy import SMCStrategy
+                        from strategies.breakout_strategy import BreakoutStrategy
+                        from strategies.price_action_strategy import PriceActionStrategy
+                        
+                        smc_sig = {
+                            'strategy_id': 'smc_institutional', 
+                            'symbol': 'EURUSD=X', 
+                            'direction': 'BUY', 
+                            'confidence': 9.0,
+                            'win_prob': 0.9, # Higher win_prob
+                            'entry_price': 1.0510,
+                            'sl': 1.0490,
+                            'tp0': 1.0520,
+                            'tp1': 1.0530,
+                            'tp2': 1.0540,
+                            'session': 'London-NY',
+                            'pair': 'EURUSD=X'
+                        }
+                        breakout_sig = {
+                            'strategy_id': 'breakout_master', 
+                            'symbol': 'EURUSD=X', 
+                            'direction': 'BUY', 
+                            'confidence': 8.5,
+                            'win_prob': 0.8, # Lower win_prob
+                            'entry_price': 1.0510,
+                            'sl': 1.0490,
+                            'tp0': 1.0520,
+                            'tp1': 1.0530,
+                            'tp2': 1.0540,
+                            'session': 'London-NY',
+                            'pair': 'EURUSD=X'
+                        }
+                        
+                        with patch.object(SMCStrategy, 'analyze', new_callable=AsyncMock, return_value=smc_sig):
+                            with patch.object(BreakoutStrategy, 'analyze', new_callable=AsyncMock, return_value=breakout_sig):
+                                with patch.object(PriceActionStrategy, 'analyze', new_callable=AsyncMock, return_value=None):
+                                    
+                                    from main import main
+                                    await main()
+                                    
+                                    # Verify that signals were processed. 
+                                    assert mock_tel.format_signal.called
+                                    # BOTH signals should be processed because they don't conflict (both BUY EURUSD)
+                                    assert mock_tel.format_signal.call_count == 2
+                                    
+                                    # Get all signals sent to format_signal
+                                    sent_signals = [call[0][0] for call in mock_tel.format_signal.call_args_list]
+                                    strategy_ids = [s['strategy_id'] for s in sent_signals]
+                                    assert 'smc_institutional' in strategy_ids
+                                    assert 'breakout_master' in strategy_ids
