@@ -1,0 +1,20 @@
+services:
+  trading-expert:
+    build: .
+    container_name: smc-scalp-signals
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./database:/app/database
+      - ./logs:/app/logs
+      - ./outputs:/app/outputs
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

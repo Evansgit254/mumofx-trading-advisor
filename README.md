@@ -63,6 +63,16 @@ python training/data_collector.py
 python training/trainer.py
 ```
 
+## Deployment
+For 24/7 operation on a VPS, use the Docker setup:
+
+1. **Build & Run**:
+   ```bash
+   docker compose up -d --build
+   ```
+   
+See [DEPLOYMENT.md](DEPLOYMENT.md) for full server setup instructions.
+
 ## Performance
 - **30-Day Verification**: +13.0R (Pruned Portfolio)
 - **Win Rate**: ~65% (on A+ setups)
