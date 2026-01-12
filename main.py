@@ -99,6 +99,7 @@ async def main():
             
             fetcher = DataFetcher()
             market_data = await fetcher.get_latest_data()
+            logger.info(f"Fetched Data Keys: {list(market_data.keys())}")
             
             if not market_data:
                 if is_actions:
@@ -113,6 +114,11 @@ async def main():
                 
                 # Deduplication (only for local continuous mode)
                 if not is_actions:
+                    # Robust check for m5 availability
+                    if 'm5' not in data:
+                        logger.warning(f"Skipping {symbol}: Missing 'm5' data. Available: {list(data.keys()) if isinstance(data, dict) else 'Not a dict'}")
+                        continue
+                        
                     latest_time = data['m5'].index[-1]
                     if last_processed_candle.get(symbol) == latest_time:
                         continue
