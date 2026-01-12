@@ -20,9 +20,28 @@ ssh root@your_vps_ip
 Install Docker and Git:
 ```bash
 sudo apt update
-sudo apt install -y git docker.io docker-compose-plugin
+sudo apt install -y git docker.io
 ```
-*Note: If `docker-compose-plugin` is not found, verify you are on Ubuntu 20.04+. Alternatively, install the simplified package `sudo apt install docker-compose` and use `docker-compose` (with a hyphen) instead of `docker compose` in all commands.*
+
+**Install Docker Compose:**
+Since standard packages are missing on some VPS images, use the standalone binary approach (works universally):
+```bash
+mkdir -p ~/.docker/cli-plugins/
+curl -SL https://github.com/docker/compose/releases/download/v2.24.0/docker-compose-linux-x86_64 -o ~/.docker/cli-plugins/docker-compose
+chmod +x ~/.docker/cli-plugins/docker-compose
+```
+
+*Verification*:
+```bash
+docker compose version
+```
+
+*Fallback (Legacy)*:
+If the above fails, install the old python version:
+```bash
+sudo apt install -y docker-compose
+```
+(If you do this, run `docker-compose up -d --build` with a hyphen).
 
 ## Step 2: Clone the Repository
 
