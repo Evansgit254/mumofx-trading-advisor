@@ -39,11 +39,19 @@ class DataFetcher:
                 df.index = df.index.tz_convert("UTC")
                 return df
             except Exception as e:
-                if attempt < max_retries - 1:
+                error_msg = str(e)
+                # Specialized handling for known intermittent yfinance issues
+                if "'NoneType' object is not subscriptable" in error_msg:
+                    log_prefix = "⚠️" if attempt < max_retries - 1 else "❌"
+                    print(f"{log_prefix} Intermittent yfinance error for {symbol} ({timeframe}): {error_msg}. Attempt {attempt+1}/{max_retries}")
+                elif attempt < max_retries - 1:
                     print(f"⚠️ Attempt {attempt+1} failed for {symbol} ({timeframe}): {e}. Retrying...")
+                else:
+                    print(f"❌ Error fetching {timeframe} data for {symbol}: {e}")
+                
+                if attempt < max_retries - 1:
                     time.sleep(backoff ** attempt)
                     continue
-                print(f"❌ Error fetching {timeframe} data for {symbol}: {e}")
                 return None
         return None
 

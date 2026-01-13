@@ -36,7 +36,7 @@ class IndicatorCalculator:
         if timeframe == "h1":
             df['adr'] = IndicatorCalculator.calculate_adr(df)
             
-        if timeframe in ["15m", "5m"]:
+        if timeframe in ["15m", "5m", "m15", "m5"]:
             ar = IndicatorCalculator.calculate_asian_range(df)
             df['asian_high'] = ar['asian_high']
             df['asian_low'] = ar['asian_low']
