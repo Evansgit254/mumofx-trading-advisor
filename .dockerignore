@@ -12,3 +12,7 @@ tests/
 research/
 *.md
 docker-compose.yml
+dashboard/
+database/
+logs/
+outputs/

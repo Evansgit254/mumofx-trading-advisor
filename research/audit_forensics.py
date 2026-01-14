@@ -62,8 +62,10 @@ async def run_forensic_audit(days=60):
             state_h1 = all_data[symbol]['h1'][all_data[symbol]['h1'].index <= t]
             if state_h1.empty: continue
             
-            # Context Data
-            adr = IndicatorCalculator.calculate_adr(state_h1)
+            # ADR Utilization
+            adr_series = IndicatorCalculator.calculate_adr(state_h1)
+            adr = adr_series.iloc[-1] if not adr_series.empty else 0
+            
             today_data = state_h1[state_h1.index.date == t.date()]
             current_range = today_data['high'].max() - today_data['low'].min() if not today_data.empty else 0
             adr_util = (current_range / adr) if adr > 0 else 0
@@ -84,15 +86,18 @@ async def run_forensic_audit(days=60):
             if not direction: continue
             
             # Quality Checks
-            asian_range = IndicatorCalculator.get_asian_range(state_m15)
+            # Asian Range
+            ar_df = IndicatorCalculator.calculate_asian_range(state_m15)
             asian_sweep = False
             asian_quality = False
-            if asian_range:
-                raw_range = asian_range['high'] - asian_range['low']
+            
+            if not ar_df.empty:
+                latest_ar = ar_df.iloc[-1]
+                raw_range = latest_ar['asian_high'] - latest_ar['asian_low']
                 pips = raw_range * 100 if "JPY" in symbol else raw_range * 10000
                 if pips >= ASIAN_RANGE_MIN_PIPS: asian_quality = True
-                if direction == "BUY" and latest_m5['low'] < asian_range['low']: asian_sweep = True
-                elif direction == "SELL" and latest_m5['high'] > asian_range['high']: asian_sweep = True
+                if direction == "BUY" and latest_m5['low'] < latest_ar['asian_low']: asian_sweep = True
+                elif direction == "SELL" and latest_m5['high'] > latest_ar['asian_high']: asian_sweep = True
 
             poc = IndicatorCalculator.calculate_poc(all_data[symbol]['m5'][all_data[symbol]['m5'].index <= t])
             atr = latest_m5['atr']
